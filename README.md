@@ -16,5 +16,5 @@
 
 4. Prosper
 
-
+### The included .spexp (Substance Painter Export) file is intended for substance painter 11.1.3+
 ## If you are having issues with these shaders please create an issue in the [issues tab](https://github.com/EpicRangeTime/Epic_Shaders/issues)
