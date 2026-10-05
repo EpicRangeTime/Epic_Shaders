@@ -1,5 +1,20 @@
-This .unitypackage file is intended for use on unity 2022. It may work on more but I have not tested it further than that.
+## Prerequisites for these shaders:
+- Unity 2022+
+- Baseline Rendering profile
 
-The .unitypackage file is the base files that you can import into unity so that you can add them to your item as a dependency.
+### These shaders were created with SPT modding in mind, you can likely use them for other Unity projects but any script integration may not function correctly in those games.
+### Recommended to install the [WTT SDK](https://github.com/WelcomeToThursday/WTT-SDK-Public)
 
-Usage of these shaders is covered in a basic format in a text file included in the .unitypackage file.
+
+## How to install these shaders:
+
+1. Navigate to the [releases page](https://github.com/EpicRangeTime/Epic_Shaders/releases).
+
+2. Download the .unitypackage file attached to the latest release.
+
+3. Drag the downloaded .unitypackage file into your open unity project.
+
+4. Prosper
+
+
+## If you are having issues with these shaders please create an issue in the [issues tab](https://github.com/EpicRangeTime/Epic_Shaders/issues)
