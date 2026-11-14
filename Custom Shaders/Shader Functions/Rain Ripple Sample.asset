@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78b2425a2284af743826c689403a4924, type: 3}
+  m_Name: Rain Ripple Sample
+  m_EditorClassIdentifier: 
+  m_functionInfo: "// Made with Amplify Shader Editor v1.9.9.14\n// Available at
+    the Unity Asset Store - http://u3d.as/y3X \n/*ASEBEGIN\nVersion=19914\n{\"type\":\"AmplifyShaderEditor.SimpleSubtractOpNode,
+    AmplifyShaderEditor\",\"id\":14,\"pos\":[-832,96],\"params\":[\"Inherit\",\"False\",\"2\",\"2\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.RangedFloatNode,
+    AmplifyShaderEditor\",\"id\":15,\"pos\":[-992,216],\"params\":[\"Inherit\",\"False\",\"Constant\",\"_Float4\",\"Float
+    4\",\"31\",\"0\",\"Create\",\"True\",\"0\",\"0\",\"0\",\"False\",\"0\",\"False\",\"Object\",\"-1\",\"\",\"0.5\",\"0\",\"0\",\"0\",\"0\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.SaturateNode,
+    AmplifyShaderEditor\",\"id\":21,\"pos\":[-392,96],\"params\":[\"Inherit\",\"False\",\"1\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.SimpleMultiplyOpNode,
+    AmplifyShaderEditor\",\"id\":22,\"pos\":[-232,0],\"params\":[\"Inherit\",\"False\",\"2\",\"2\",\"0\",\"FLOAT2\",\"0,0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT2\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.Vector3Node,
+    AmplifyShaderEditor\",\"id\":23,\"pos\":[-2624,64],\"params\":[\"Inherit\",\"False\",\"Global\",\"_EnvironmentRippleCycle\",\"_EnvironmentRippleCycle\",\"31\",\"0\",\"Create\",\"True\",\"0\",\"0\",\"0\",\"False\",\"0\",\"False\",\"Object\",\"-1\",\"\",\"0,0,0\",\"0,0,0\",\"0\",\"4\",\"FLOAT3\",\"0\",\"FLOAT\",\"1\",\"FLOAT\",\"2\",\"FLOAT\",\"3\"]}\n{\"type\":\"AmplifyShaderEditor.TexturePropertyNode,
+    AmplifyShaderEditor\",\"id\":24,\"pos\":[-2600,-136],\"params\":[\"Inherit\",\"True\",\"Global\",\"_RippleTexture\",\"_RippleTexture\",\"31\",\"0\",\"Create\",\"True\",\"0\",\"0\",\"0\",\"False\",\"0\",\"False\",\"\",\"None\",\"None\",\"False\",\"white\",\"Auto\",\"Texture2D\",\"False\",\"-1\",\"0\",\"2\",\"SAMPLER2D\",\"0\",\"SAMPLERSTATE\",\"1\"]}\n{\"type\":\"AmplifyShaderEditor.SamplerNode,
+    AmplifyShaderEditor\",\"id\":25,\"pos\":[-2384,-136],\"params\":[\"Inherit\",\"True\",\"Property\",\"_TextureSample1\",\"Texture
+    Sample 1\",\"31\",\"0\",\"Create\",\"True\",\"0\",\"0\",\"0\",\"False\",\"0\",\"False\",\"\",\"-1\",\"None\",\"None\",\"True\",\"0\",\"False\",\"white\",\"Auto\",\"False\",\"Object\",\"-1\",\"Auto\",\"Texture2D\",\"False\",\"8\",\"0\",\"SAMPLER2D\",\"\",\"False\",\"1\",\"FLOAT2\",\"0,0\",\"False\",\"2\",\"FLOAT\",\"0\",\"False\",\"3\",\"FLOAT2\",\"0,0\",\"False\",\"4\",\"FLOAT2\",\"0,0\",\"False\",\"5\",\"FLOAT\",\"1\",\"False\",\"6\",\"FLOAT\",\"0\",\"False\",\"7\",\"SAMPLERSTATE\",\"\",\"False\",\"6\",\"COLOR\",\"0\",\"FLOAT\",\"1\",\"FLOAT\",\"2\",\"FLOAT\",\"3\",\"FLOAT\",\"4\",\"FLOAT3\",\"5\"]}\n{\"type\":\"AmplifyShaderEditor.SimpleMultiplyOpNode,
+    AmplifyShaderEditor\",\"id\":26,\"pos\":[-2072,88],\"params\":[\"Inherit\",\"False\",\"2\",\"2\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.SimpleAddOpNode,
+    AmplifyShaderEditor\",\"id\":27,\"pos\":[-1904,88],\"params\":[\"Inherit\",\"False\",\"2\",\"2\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.RangedFloatNode,
+    AmplifyShaderEditor\",\"id\":28,\"pos\":[-1800,272],\"params\":[\"Inherit\",\"False\",\"Constant\",\"_Float3\",\"Float
+    3\",\"31\",\"0\",\"Create\",\"True\",\"0\",\"0\",\"0\",\"False\",\"0\",\"False\",\"Object\",\"-1\",\"\",\"1\",\"0\",\"0\",\"0\",\"0\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.SimpleDivideOpNode,
+    AmplifyShaderEditor\",\"id\":29,\"pos\":[-1768,176],\"params\":[\"Inherit\",\"False\",\"2\",\"2\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.FmodOpNode,
+    AmplifyShaderEditor\",\"id\":30,\"pos\":[-1616,176],\"params\":[\"Inherit\",\"False\",\"2\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.SimpleMultiplyOpNode,
+    AmplifyShaderEditor\",\"id\":31,\"pos\":[-1472,272],\"params\":[\"Inherit\",\"False\",\"2\",\"2\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.OneMinusNode,
+    AmplifyShaderEditor\",\"id\":32,\"pos\":[-1328,272],\"params\":[\"Inherit\",\"False\",\"1\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.SaturateNode,
+    AmplifyShaderEditor\",\"id\":33,\"pos\":[-1184,272],\"params\":[\"Inherit\",\"False\",\"1\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.SimpleMultiplyOpNode,
+    AmplifyShaderEditor\",\"id\":34,\"pos\":[-992,96],\"params\":[\"Inherit\",\"False\",\"3\",\"3\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"2\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.DynamicAppendNode,
+    AmplifyShaderEditor\",\"id\":16,\"pos\":[-984,-80],\"params\":[\"Inherit\",\"False\",\"FLOAT2\",\"4\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"2\",\"FLOAT\",\"0\",\"False\",\"3\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT2\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.RangedFloatNode,
+    AmplifyShaderEditor\",\"id\":17,\"pos\":[-984,16],\"params\":[\"Inherit\",\"False\",\"Constant\",\"_Float5\",\"Float
+    5\",\"31\",\"0\",\"Create\",\"True\",\"0\",\"0\",\"0\",\"False\",\"0\",\"False\",\"Object\",\"-1\",\"\",\"2\",\"0\",\"0\",\"0\",\"0\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.RangedFloatNode,
+    AmplifyShaderEditor\",\"id\":18,\"pos\":[-832,16],\"params\":[\"Inherit\",\"False\",\"Constant\",\"_Float6\",\"Float
+    6\",\"31\",\"0\",\"Create\",\"True\",\"0\",\"0\",\"0\",\"False\",\"0\",\"False\",\"Object\",\"-1\",\"\",\"1\",\"0\",\"0\",\"0\",\"0\",\"1\",\"FLOAT\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.SimpleMultiplyOpNode,
+    AmplifyShaderEditor\",\"id\":19,\"pos\":[-832,-80],\"params\":[\"Inherit\",\"False\",\"2\",\"2\",\"0\",\"FLOAT2\",\"0,0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT2\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.SimpleSubtractOpNode,
+    AmplifyShaderEditor\",\"id\":20,\"pos\":[-688,-80],\"params\":[\"Inherit\",\"False\",\"2\",\"2\",\"0\",\"FLOAT2\",\"0,0\",\"False\",\"1\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT2\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.FunctionInput,
+    AmplifyShaderEditor\",\"id\":35,\"pos\":[-2784,-112],\"params\":[\"Inherit\",\"False\",\"UV\",\"2\",\"0\",\"False\",\"\",\"\",\"1\",\"0\",\"FLOAT2\",\"0,0\",\"False\",\"1\",\"FLOAT2\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.FunctionOutput,
+    AmplifyShaderEditor\",\"id\":0,\"pos\":[0,0],\"params\":[\"Inherit\",\"False\",\"True\",\"-1\",\"Drop
+    XY\",\"1\",\"False\",\"1\",\"0\",\"FLOAT2\",\"0,0\",\"False\",\"1\",\"FLOAT2\",\"0\"]}\n{\"type\":\"AmplifyShaderEditor.FunctionOutput,
+    AmplifyShaderEditor\",\"id\":13,\"pos\":[0,-96],\"params\":[\"Inherit\",\"False\",\"False\",\"-1\",\"Drop
+    Mask\",\"0\",\"False\",\"1\",\"0\",\"FLOAT\",\"0\",\"False\",\"1\",\"FLOAT\",\"0\"]}\n{\"wire\":[14,0,34,0]}\n{\"wire\":[14,1,15,0]}\n{\"wire\":[21,0,14,0]}\n{\"wire\":[22,0,20,0]}\n{\"wire\":[22,1,21,0]}\n{\"wire\":[25,0,24,0]}\n{\"wire\":[25,1,35,0]}\n{\"wire\":[26,0,25,4]}\n{\"wire\":[26,1,23,2]}\n{\"wire\":[27,0,26,0]}\n{\"wire\":[27,1,23,1]}\n{\"wire\":[29,0,27,0]}\n{\"wire\":[29,1,23,2]}\n{\"wire\":[30,0,29,0]}\n{\"wire\":[30,1,28,0]}\n{\"wire\":[31,0,30,0]}\n{\"wire\":[31,1,23,2]}\n{\"wire\":[32,0,31,0]}\n{\"wire\":[33,0,32,0]}\n{\"wire\":[34,0,25,1]}\n{\"wire\":[34,1,33,0]}\n{\"wire\":[34,2,23,3]}\n{\"wire\":[16,0,25,2]}\n{\"wire\":[16,1,25,3]}\n{\"wire\":[19,0,16,0]}\n{\"wire\":[19,1,17,0]}\n{\"wire\":[20,0,19,0]}\n{\"wire\":[20,1,18,0]}\n{\"wire\":[0,0,22,0]}\n{\"wire\":[13,0,34,0]}\nASEEND*/\n//CHKSM=7645328B303A9C65D339D7E6BFBDADFA5F238730"
+  m_functionName: 
+  m_description: Sampler node for the rain ripple texture and its accompanying animation
+    functions for use in creating shaders for Tarkov
+  m_additionalIncludes:
+    m_additionalIncludes: []
+    m_outsideIncludes: []
+  m_additionalPragmas:
+    m_additionalPragmas: []
+    m_outsidePragmas: []
+  m_additionalDirectives:
+    m_validData: 0
+    m_isDirty: 1
+    m_moduleName: ' Additional Directives'
+    m_independentModule: 1
+    m_customEdited: 0
+    m_additionalDirectives: []
+    m_shaderFunctionDirectives: []
+    m_nativeDirectives: []
+    m_nativeDirectivesIndex: -1
+    m_nativeDirectivesFoldout: 0
+    m_directivesSaveItems: []
+    m_versionMaxExclusive: 1
+  m_nodeCategory: 3
+  m_headerStyle: 0
+  m_headerColor: {r: 1, g: 0.4, b: 0, a: 1}
+  m_customNodeCategory: 
+  m_previewPosition: 0
+  m_hidden: 0
+  m_url: 
