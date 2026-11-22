@@ -1,33 +1,19 @@
-// Made with Amplify Shader Editor v1.9.9.4
+// Made with Amplify Shader Editor v1.9.9.14
 // Available at the Unity Asset Store - http://u3d.as/y3X 
-Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
+Shader "Epic Replacements/p0/Reflective/Bumped Specular"
 {
 	Properties
 	{
-		[MaterialEnum(Static, 0, Characters, 1, Hands, 2)] _StencilType( "Stencil Type", Range( 0, 2 ) ) = 0
-		_MainTex( "(Diffuse) Base (RGB) Specular (A)", 2D ) = "black" {}
-		_SpecMap( "Gloss Map", 2D ) = "gray" {}
-		_Specularness( "Smoothness", Range( 0, 10 ) ) = 1
-		_MetallicPower( "Metallic Power", Range( 0, 5 ) ) = 1.4
-		_MetallicSmoothstepMinMax( "Metallic Smoothstep Min Max", Vector ) = ( 0.2, 0.85, 0, 0 )
-		[Normal] _BumpMap( "Normal Map", 2D ) = "bump" {}
-		_NormalIntensity( "Normal Intensity", Float ) = 1
-		_BumpTiling( "Normal Tiling", Float ) = 1
-		[Header(Rain Settings)][Space(10)] _DropsSpec( "Drops Spec", Float ) = 128
-		_RippleTexScale( "Ripple Texture Scale", Float ) = 4
-		_RippleFakeLightIntensityOffset( "Fake Ripple Light Offset", Float ) = 0.7
-		_NightRippleFakeLightOffset( "Fake Night Ripple Light Offset", Float ) = 0.2
-		_NdotLOffset( "Normal Dot Light Offset", Float ) = 0.4
-		[Toggle] _USERAIN( "Material Effected By Rain", Float ) = 0
-		[Header(Heat Settings)][Toggle][Space(10)] USEHEAT( "Use Metal Heat Glow", Float ) = 0
-		_HeatVisible( "Heat Visibility (0-1)", Float ) = 1
-		_Temperature( "Temperature Settings", Vector ) = ( 0.1, 0.2, 0.28, 0 )
-		[HDR] _HeatColor1( "Heat Color 1", Color ) = ( 1, 0, 0, 1 )
-		[HDR] _HeatColor2( "Heat Color 2", Color ) = ( 1, 0.34, 0, 1 )
-		_HeatCenter( "Heat Center", Vector ) = ( 0, 0, 0, 1 )
-		_HeatSize( "Heat Size", Vector ) = ( 0.02, 0.04, 0.02, 1 )
-		_HeatTemp( "Heat Temperature", Float ) = 0
-		[HideInInspector] _texcoord( "", 2D ) = "white" {}
+		_SpecColor ("Specular Color", Color) = (0.5,0.5,0.5,1)
+		[MaterialEnum(Static,0,Characters,1,Hands,2)] _StencilType ("Stencil Type", Float) = 0
+		_BumpMap( "Normalmap", 2D ) = "bump" {}
+		_MainTex( "Base (RGB) RefStrGloss (A)", 2D ) = "white" {}
+		_Color( "Main Color", Color ) = ( 1, 1, 1, 1 )
+		_DefVals( "Defuse Vals", Vector ) = ( 0.5, 0.7, 0, 0 )
+		_SpecPower( "Specular Power", Range( 0.01, 10 ) ) = 1
+		_SpecVals( "Specular Vals", Vector ) = ( 1.1, 2, 0, 0 )
+		_Shininess( "Shininess", Range( 0.01, 1 ) ) = 0.078125
+		_Temperature( "_Temperature(min, max, factor)", Vector ) = ( 0.1, 0.2, 0.25, 0 )
 
 
 		//_TransmissionShadow( "Transmission Shadow", Range( 0, 1 ) ) = 0.5
@@ -45,8 +31,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 		//_TessEdgeLength ( "Tess Edge length", Range( 2, 50 ) ) = 16
 		//_TessMaxDisp( "Tess Max Displacement", Float ) = 25
 
-		//[ToggleOff] _SpecularHighlights("Specular Highlights", Float) = 1.0
-		//[ToggleOff] _GlossyReflections("Reflections", Float) = 1.0
+		[ToggleOff] _SpecularHighlights("Specular Highlights", Float) = 1.0
+		[ToggleOff] _GlossyReflections("Reflections", Float) = 1.0
 
 		//_InstancedTerrainNormals("Specular Highlights", Float) = 1.0
 	}
@@ -64,25 +50,25 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 		Cull Back
 		AlphaToMask Off
 		ZWrite On
+		ZClip True
 		ZTest LEqual
 		ColorMask RGBA
+		Blend One Zero, One Zero
+		BlendOp Add, Add
+		Offset 0 , 0
 
-		Stencil
-		{
-			Ref [_StencilType]
-			WriteMask 3
-			Comp Always
-			Pass Replace
-			Fail Keep
-			ZFail Keep
-		}
+		
 
-		Blend Off
+		Blend One Zero, One Zero
+		BlendOp Add, Add
 		
 
 		CGINCLUDE
 			#pragma target 3.5
+			// ensure rendering platforms toggle list is visible
 
+			#ifndef GLOBAL_HEADER_INCLUDED
+			#define GLOBAL_HEADER_INCLUDED
 			float4 FixedTess( float tessValue )
 			{
 				return tessValue;
@@ -190,6 +176,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 			#endif
 				return positionCS;
 			}
+			#endif
 		ENDCG
 
 		
@@ -199,17 +186,22 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 			Name "ForwardBase"
 			Tags { "LightMode"="ForwardBase" }
 
-			Blend One Zero
+			Blend One Zero, One Zero
+			BlendOp Add, Add
 
 			CGPROGRAM
 				#define ASE_GEOMETRY
 				#define ASE_FRAGMENT_NORMAL 0
 				#define ASE_RECEIVE_SHADOWS
+				#pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
+				#pragma shader_feature_local_fragment _GLOSSYREFLECTIONS_OFF
 				#pragma multi_compile_instancing
 				#pragma multi_compile _ LOD_FADE_CROSSFADE
 				#pragma multi_compile_fog
 				#define ASE_FOG
-				#define ASE_VERSION 19904
+				#define _SPECULAR_SETUP 1
+				#define ASE_VERSION 19914
+				#define ASE_USING_SAMPLING_MACROS 1
 
 				#pragma vertex vert
 				#pragma fragment frag
@@ -239,10 +231,36 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					#define ENABLE_TERRAIN_PERPIXEL_NORMAL
 				#endif
 
-				#include "UnityStandardUtils.cginc"
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_WORLD_POSITION
+				#define ASE_NEEDS_FRAG_WORLD_POSITION
+				#define ASE_NEEDS_WORLD_TANGENT
+				#define ASE_NEEDS_FRAG_WORLD_TANGENT
+				#define ASE_NEEDS_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_BITANGENT
 				#define ASE_NEEDS_FRAG_TEXTURE_COORDINATES0
+				#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(UNITY_COMPILER_HLSLCC) || defined(SHADER_API_PSSL) || (defined(SHADER_TARGET_SURFACE_ANALYSIS) && !defined(SHADER_TARGET_SURFACE_ANALYSIS_MOJOSHADER))//ASE Sampler Macros
+				#define SAMPLE_TEXTURE2D(tex,samplerTex,coord) tex.Sample(samplerTex,coord)
+				#define SAMPLE_TEXTURE2D_LOD(tex,samplerTex,coord,lod) tex.SampleLevel(samplerTex,coord, lod)
+				#define SAMPLE_TEXTURE2D_BIAS(tex,samplerTex,coord,bias) tex.SampleBias(samplerTex,coord,bias)
+				#define SAMPLE_TEXTURE2D_GRAD(tex,samplerTex,coord,ddx,ddy) tex.SampleGrad(samplerTex,coord,ddx,ddy)
+				#else//ASE Sampling Macros
+				#define SAMPLE_TEXTURE2D(tex,samplerTex,coord) tex2D(tex,coord)
+				#define SAMPLE_TEXTURE2D_LOD(tex,samplerTex,coord,lod) tex2Dlod(tex,float4(coord,0,lod))
+				#define SAMPLE_TEXTURE2D_BIAS(tex,samplerTex,coord,bias) tex2Dbias(tex,float4(coord,0,bias))
+				#define SAMPLE_TEXTURE2D_GRAD(tex,samplerTex,coord,ddx,ddy) tex2Dgrad(tex,coord,ddx,ddy)
+				#endif//ASE Sampling Macros
+				
 
+
+				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
+					#define ASE_SV_DEPTH SV_DepthLessEqual
+					#define ASE_SV_POSITION_QUALIFIERS linear noperspective centroid
+				#else
+					#define ASE_SV_DEPTH SV_Depth
+					#define ASE_SV_POSITION_QUALIFIERS
+				#endif
 
 				struct appdata
 				{
@@ -258,7 +276,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 
 				struct v2f
 				{
-					float4 pos : SV_POSITION;
+					ASE_SV_POSITION_QUALIFIERS float4 pos : SV_POSITION;
 					float4 worldPos : TEXCOORD0; // xyz = positionWS, w = fogCoord
 					half3 normalWS : TEXCOORD1;
 					float4 tangentWS : TEXCOORD2; // holds terrainUV ifdef ENABLE_TERRAIN_PERPIXEL_NORMAL
@@ -289,34 +307,42 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
-				uniform float _StencilType;
-				uniform sampler2D _MainTex;
+				UNITY_DECLARE_TEX2D_NOSAMPLER(_MainTex);
 				uniform float4 _MainTex_ST;
-				uniform float2 _MetallicSmoothstepMinMax;
-				uniform float _MetallicPower;
-				uniform sampler2D _BumpMap;
-				uniform float _BumpTiling;
-				uniform float _NormalIntensity;
-				uniform sampler2D _SpecMap;
-				uniform float4 _SpecMap_ST;
-				uniform float _Specularness;
+				SamplerState sampler_MainTex;
+				uniform float4 _Color;
+				uniform float4 _DefVals;
+				uniform float4 _Temperature;
+				uniform float _ThermalVisionOn;
+				UNITY_DECLARE_TEX2D_NOSAMPLER(_BumpMap);
+				uniform float4 _BumpMap_ST;
+				SamplerState sampler_BumpMap;
+				uniform float _SpecPower;
+				uniform float4 _SpecVals;
+				uniform float _Shininess;
 
 
+				float Grazingresponse809( float3 V )
+				{
+					float a=1-saturate(V.z); return 0.5*a*a;
+				}
 				
+				float DefValsresponse811( float4 K, float Rim )
+				{
+					return K.x + K.y * Rim;
+				}
+				
+				float3 Thermalsurfaceresponse823( float3 C, float4 T, float On )
+				{
+					return On>0 ? clamp(C*T.z,T.x,T.y)+T.w : C;
+				}
+				
+				float SpecValsresponse818( float4 K, float Rim )
+				{
+					return K.x + K.y * Rim;
+				}
+				
+
 				v2f VertexFunction( appdata v  )
 				{
 					UNITY_SETUP_INSTANCE_ID(v);
@@ -474,8 +500,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#endif
 
 				half4 frag( v2f IN 
-							#if defined( ASE_DEPTH_WRITE_ON )
-								, out float outputDepth : SV_Depth
+							#if defined( ASE_WRITE_DEPTH )
+								, out float outputDepth : ASE_SV_DEPTH
 							#endif
 							) : SV_Target
 				{
@@ -523,24 +549,35 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					#endif
 
 					float2 uv_MainTex = IN.ase_texcoord6.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-					float4 tex2DNode13 = tex2D( _MainTex, uv_MainTex );
-					float smoothstepResult36 = smoothstep( _MetallicSmoothstepMinMax.x , _MetallicSmoothstepMinMax.y , tex2DNode13.a);
-					float temp_output_40_0 = pow( smoothstepResult36 , _MetallicPower );
-					float3 lerpResult21 = lerp( tex2DNode13.rgb , ( tex2DNode13.rgb * 1.5 ) , temp_output_40_0);
+					float4 tex2DNode803 = SAMPLE_TEXTURE2D( _MainTex, sampler_MainTex, uv_MainTex );
+					float4 K811 = _DefVals;
+					float3 tanToWorld0 = float3( TangentWS.x, BitangentWS.x, NormalWS.x );
+					float3 tanToWorld1 = float3( TangentWS.y, BitangentWS.y, NormalWS.y );
+					float3 tanToWorld2 = float3( TangentWS.z, BitangentWS.z, NormalWS.z );
+					float3 ase_viewVectorTS =  tanToWorld0 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).x + tanToWorld1 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).y  + tanToWorld2 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).z;
+					float3 ase_viewDirTS = normalize( ase_viewVectorTS );
+					float3 V809 = ase_viewDirTS;
+					float localGrazingresponse809 = Grazingresponse809( V809 );
+					float Rim811 = localGrazingresponse809;
+					float localDefValsresponse811 = DefValsresponse811( K811 , Rim811 );
+					float3 C823 = ( ( tex2DNode803.rgb * _Color.rgb ) * localDefValsresponse811 );
+					float4 T823 = _Temperature;
+					float On823 = _ThermalVisionOn;
+					float3 localThermalsurfaceresponse823 = Thermalsurfaceresponse823( C823 , T823 , On823 );
 					
-					float2 temp_cast_0 = (_BumpTiling).xx;
-					float2 texCoord43 = IN.ase_texcoord6.xy * temp_cast_0 + float2( 0,0 );
+					float2 uv_BumpMap = IN.ase_texcoord6.xy * _BumpMap_ST.xy + _BumpMap_ST.zw;
 					
-					float2 uv_SpecMap = IN.ase_texcoord6.xy * _SpecMap_ST.xy + _SpecMap_ST.zw;
-					float3 temp_cast_1 = (1.4).xxx;
+					float4 K818 = _SpecVals;
+					float Rim818 = localGrazingresponse809;
+					float localSpecValsresponse818 = SpecValsresponse818( K818 , Rim818 );
 					
 
-					o.Albedo = lerpResult21;
-					o.Normal = UnpackScaleNormal( tex2D( _BumpMap, texCoord43 ), _NormalIntensity );
+					o.Albedo = localThermalsurfaceresponse823;
+					o.Normal = UnpackNormal( SAMPLE_TEXTURE2D( _BumpMap, sampler_BumpMap, uv_BumpMap ) );
 
-					half3 Specular = half3( 0, 0, 0 );
-					half Metallic = temp_output_40_0;
-					half Smoothness = ( pow( tex2D( _SpecMap, uv_SpecMap ).rgb , temp_cast_1 ) * _Specularness ).x;
+					half3 Specular = ( ( ( _SpecColor.rgb * tex2DNode803.a ) * _SpecPower ) * localSpecValsresponse818 );
+					half Metallic = 0;
+					half Smoothness = _Shininess;
 					half Occlusion = 1;
 
 					#if defined(ASE_LIGHTING_SIMPLE)
@@ -564,8 +601,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					half3 Transmission = 1;
 					half3 Translucency = 1;
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						float DeviceDepth = IN.pos.z;
+					#if defined( ASE_WRITE_DEPTH )
+						IN.pos.z = IN.pos.z;
 					#endif
 
 					#ifdef _ALPHATEST_ON
@@ -591,8 +628,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 						// @diogo: already in world-space; do nothing
 					#endif
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						outputDepth = DeviceDepth;
+					#if defined( ASE_WRITE_DEPTH )
+						outputDepth = IN.pos.z;
 					#endif
 
 					#ifndef USING_DIRECTIONAL_LIGHT
@@ -717,6 +754,14 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					return c;
 				}
 			ENDCG
+			Stencil
+			{
+				Ref [_StencilType]
+				WriteMask 3
+				Comp Always
+				Pass Replace
+			}
+
 		}
 
 		
@@ -732,11 +777,14 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#define ASE_GEOMETRY
 				#define ASE_FRAGMENT_NORMAL 0
 				#define ASE_RECEIVE_SHADOWS
+				#pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
 				#pragma multi_compile_instancing
 				#pragma multi_compile _ LOD_FADE_CROSSFADE
 				#pragma multi_compile_fog
 				#define ASE_FOG
-				#define ASE_VERSION 19904
+				#define _SPECULAR_SETUP 1
+				#define ASE_VERSION 19914
+				#define ASE_USING_SAMPLING_MACROS 1
 
 				#pragma vertex vert
 				#pragma fragment frag
@@ -767,10 +815,35 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					#define ENABLE_TERRAIN_PERPIXEL_NORMAL
 				#endif
 
-				#include "UnityStandardUtils.cginc"
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_WORLD_POSITION
+				#define ASE_NEEDS_FRAG_WORLD_POSITION
+				#define ASE_NEEDS_FRAG_WORLD_TANGENT
+				#define ASE_NEEDS_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_BITANGENT
 				#define ASE_NEEDS_FRAG_TEXTURE_COORDINATES0
+				#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(UNITY_COMPILER_HLSLCC) || defined(SHADER_API_PSSL) || (defined(SHADER_TARGET_SURFACE_ANALYSIS) && !defined(SHADER_TARGET_SURFACE_ANALYSIS_MOJOSHADER))//ASE Sampler Macros
+				#define SAMPLE_TEXTURE2D(tex,samplerTex,coord) tex.Sample(samplerTex,coord)
+				#define SAMPLE_TEXTURE2D_LOD(tex,samplerTex,coord,lod) tex.SampleLevel(samplerTex,coord, lod)
+				#define SAMPLE_TEXTURE2D_BIAS(tex,samplerTex,coord,bias) tex.SampleBias(samplerTex,coord,bias)
+				#define SAMPLE_TEXTURE2D_GRAD(tex,samplerTex,coord,ddx,ddy) tex.SampleGrad(samplerTex,coord,ddx,ddy)
+				#else//ASE Sampling Macros
+				#define SAMPLE_TEXTURE2D(tex,samplerTex,coord) tex2D(tex,coord)
+				#define SAMPLE_TEXTURE2D_LOD(tex,samplerTex,coord,lod) tex2Dlod(tex,float4(coord,0,lod))
+				#define SAMPLE_TEXTURE2D_BIAS(tex,samplerTex,coord,bias) tex2Dbias(tex,float4(coord,0,bias))
+				#define SAMPLE_TEXTURE2D_GRAD(tex,samplerTex,coord,ddx,ddy) tex2Dgrad(tex,coord,ddx,ddy)
+				#endif//ASE Sampling Macros
+				
 
+
+				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
+					#define ASE_SV_DEPTH SV_DepthLessEqual
+					#define ASE_SV_POSITION_QUALIFIERS linear noperspective centroid
+				#else
+					#define ASE_SV_DEPTH SV_Depth
+					#define ASE_SV_POSITION_QUALIFIERS
+				#endif
 
 				struct appdata
 				{
@@ -786,7 +859,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 
 				struct v2f
 				{
-					float4 pos : SV_POSITION;
+					ASE_SV_POSITION_QUALIFIERS float4 pos : SV_POSITION;
 					float4 worldPos : TEXCOORD0; // xyz = positionWS, w = fogCoord
 					half3 normalWS : TEXCOORD1;
 					float4 tangentWS : TEXCOORD2; // holds terrainUV ifdef ENABLE_TERRAIN_PERPIXEL_NORMAL
@@ -816,34 +889,42 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
-				uniform float _StencilType;
-				uniform sampler2D _MainTex;
+				UNITY_DECLARE_TEX2D_NOSAMPLER(_MainTex);
 				uniform float4 _MainTex_ST;
-				uniform float2 _MetallicSmoothstepMinMax;
-				uniform float _MetallicPower;
-				uniform sampler2D _BumpMap;
-				uniform float _BumpTiling;
-				uniform float _NormalIntensity;
-				uniform sampler2D _SpecMap;
-				uniform float4 _SpecMap_ST;
-				uniform float _Specularness;
+				SamplerState sampler_MainTex;
+				uniform float4 _Color;
+				uniform float4 _DefVals;
+				uniform float4 _Temperature;
+				uniform float _ThermalVisionOn;
+				UNITY_DECLARE_TEX2D_NOSAMPLER(_BumpMap);
+				uniform float4 _BumpMap_ST;
+				SamplerState sampler_BumpMap;
+				uniform float _SpecPower;
+				uniform float4 _SpecVals;
+				uniform float _Shininess;
 
 
+				float Grazingresponse809( float3 V )
+				{
+					float a=1-saturate(V.z); return 0.5*a*a;
+				}
 				
+				float DefValsresponse811( float4 K, float Rim )
+				{
+					return K.x + K.y * Rim;
+				}
+				
+				float3 Thermalsurfaceresponse823( float3 C, float4 T, float On )
+				{
+					return On>0 ? clamp(C*T.z,T.x,T.y)+T.w : C;
+				}
+				
+				float SpecValsresponse818( float4 K, float Rim )
+				{
+					return K.x + K.y * Rim;
+				}
+				
+
 				v2f VertexFunction (appdata v  ) {
 					UNITY_SETUP_INSTANCE_ID(v);
 					v2f o;
@@ -984,8 +1065,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#endif
 
 				half4 frag ( v2f IN 
-					#if defined( ASE_DEPTH_WRITE_ON )
-					, out float outputDepth : SV_Depth
+					#if defined( ASE_WRITE_DEPTH )
+					, out float outputDepth : ASE_SV_DEPTH
 					#endif
 					) : SV_Target
 				{
@@ -1033,24 +1114,35 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					#endif
 
 					float2 uv_MainTex = IN.ase_texcoord5.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-					float4 tex2DNode13 = tex2D( _MainTex, uv_MainTex );
-					float smoothstepResult36 = smoothstep( _MetallicSmoothstepMinMax.x , _MetallicSmoothstepMinMax.y , tex2DNode13.a);
-					float temp_output_40_0 = pow( smoothstepResult36 , _MetallicPower );
-					float3 lerpResult21 = lerp( tex2DNode13.rgb , ( tex2DNode13.rgb * 1.5 ) , temp_output_40_0);
+					float4 tex2DNode803 = SAMPLE_TEXTURE2D( _MainTex, sampler_MainTex, uv_MainTex );
+					float4 K811 = _DefVals;
+					float3 tanToWorld0 = float3( TangentWS.x, BitangentWS.x, NormalWS.x );
+					float3 tanToWorld1 = float3( TangentWS.y, BitangentWS.y, NormalWS.y );
+					float3 tanToWorld2 = float3( TangentWS.z, BitangentWS.z, NormalWS.z );
+					float3 ase_viewVectorTS =  tanToWorld0 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).x + tanToWorld1 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).y  + tanToWorld2 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).z;
+					float3 ase_viewDirTS = normalize( ase_viewVectorTS );
+					float3 V809 = ase_viewDirTS;
+					float localGrazingresponse809 = Grazingresponse809( V809 );
+					float Rim811 = localGrazingresponse809;
+					float localDefValsresponse811 = DefValsresponse811( K811 , Rim811 );
+					float3 C823 = ( ( tex2DNode803.rgb * _Color.rgb ) * localDefValsresponse811 );
+					float4 T823 = _Temperature;
+					float On823 = _ThermalVisionOn;
+					float3 localThermalsurfaceresponse823 = Thermalsurfaceresponse823( C823 , T823 , On823 );
 					
-					float2 temp_cast_0 = (_BumpTiling).xx;
-					float2 texCoord43 = IN.ase_texcoord5.xy * temp_cast_0 + float2( 0,0 );
+					float2 uv_BumpMap = IN.ase_texcoord5.xy * _BumpMap_ST.xy + _BumpMap_ST.zw;
 					
-					float2 uv_SpecMap = IN.ase_texcoord5.xy * _SpecMap_ST.xy + _SpecMap_ST.zw;
-					float3 temp_cast_1 = (1.4).xxx;
+					float4 K818 = _SpecVals;
+					float Rim818 = localGrazingresponse809;
+					float localSpecValsresponse818 = SpecValsresponse818( K818 , Rim818 );
 					
 
-					o.Albedo = lerpResult21;
-					o.Normal = UnpackScaleNormal( tex2D( _BumpMap, texCoord43 ), _NormalIntensity );
+					o.Albedo = localThermalsurfaceresponse823;
+					o.Normal = UnpackNormal( SAMPLE_TEXTURE2D( _BumpMap, sampler_BumpMap, uv_BumpMap ) );
 
-					half3 Specular = half3( 0, 0, 0 );
-					half Metallic = temp_output_40_0;
-					half Smoothness = ( pow( tex2D( _SpecMap, uv_SpecMap ).rgb , temp_cast_1 ) * _Specularness ).x;
+					half3 Specular = ( ( ( _SpecColor.rgb * tex2DNode803.a ) * _SpecPower ) * localSpecValsresponse818 );
+					half Metallic = 0;
+					half Smoothness = _Shininess;
 					half Occlusion = 1;
 
 					#if defined(ASE_LIGHTING_SIMPLE)
@@ -1072,8 +1164,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					half3 Transmission = 1;
 					half3 Translucency = 1;
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						float DeviceDepth = IN.pos.z;
+					#if defined( ASE_WRITE_DEPTH )
+						IN.pos.z = IN.pos.z;
 					#endif
 
 					#ifdef _ALPHATEST_ON
@@ -1099,8 +1191,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 						// @diogo: already in world-space; do nothing
 					#endif
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						outputDepth = DeviceDepth;
+					#if defined( ASE_WRITE_DEPTH )
+						outputDepth = IN.pos.z;
 					#endif
 
 					#ifndef USING_DIRECTIONAL_LIGHT
@@ -1115,7 +1207,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					gi.indirect.specular = 0;
 					gi.light.color = _LightColor0.rgb;
 					gi.light.dir = lightDir;
-					gi.light.color *= atten;
+					gi.light.color *= LightAtten;
 
 					half4 c = 0;
 					#if defined(ASE_LIGHTING_SIMPLE)
@@ -1173,6 +1265,14 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					return c;
 				}
 			ENDCG
+			Stencil
+			{
+				Ref [_StencilType]
+				WriteMask 3
+				Comp Always
+				Pass Replace
+			}
+
 		}
 
 		
@@ -1188,10 +1288,14 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#define ASE_GEOMETRY
 				#define ASE_FRAGMENT_NORMAL 0
 				#define ASE_RECEIVE_SHADOWS
+				#pragma shader_feature_local_fragment _SPECULARHIGHLIGHTS_OFF
+				#pragma shader_feature_local_fragment _GLOSSYREFLECTIONS_OFF
 				#pragma multi_compile_instancing
 				#pragma multi_compile _ LOD_FADE_CROSSFADE
 				#define ASE_FOG
-				#define ASE_VERSION 19904
+				#define _SPECULAR_SETUP 1
+				#define ASE_VERSION 19914
+				#define ASE_USING_SAMPLING_MACROS 1
 
 				#pragma vertex vert
 				#pragma fragment frag
@@ -1221,10 +1325,36 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					#define ENABLE_TERRAIN_PERPIXEL_NORMAL
 				#endif
 
-				#include "UnityStandardUtils.cginc"
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_WORLD_POSITION
+				#define ASE_NEEDS_FRAG_WORLD_POSITION
+				#define ASE_NEEDS_WORLD_TANGENT
+				#define ASE_NEEDS_FRAG_WORLD_TANGENT
+				#define ASE_NEEDS_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_BITANGENT
 				#define ASE_NEEDS_FRAG_TEXTURE_COORDINATES0
+				#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(UNITY_COMPILER_HLSLCC) || defined(SHADER_API_PSSL) || (defined(SHADER_TARGET_SURFACE_ANALYSIS) && !defined(SHADER_TARGET_SURFACE_ANALYSIS_MOJOSHADER))//ASE Sampler Macros
+				#define SAMPLE_TEXTURE2D(tex,samplerTex,coord) tex.Sample(samplerTex,coord)
+				#define SAMPLE_TEXTURE2D_LOD(tex,samplerTex,coord,lod) tex.SampleLevel(samplerTex,coord, lod)
+				#define SAMPLE_TEXTURE2D_BIAS(tex,samplerTex,coord,bias) tex.SampleBias(samplerTex,coord,bias)
+				#define SAMPLE_TEXTURE2D_GRAD(tex,samplerTex,coord,ddx,ddy) tex.SampleGrad(samplerTex,coord,ddx,ddy)
+				#else//ASE Sampling Macros
+				#define SAMPLE_TEXTURE2D(tex,samplerTex,coord) tex2D(tex,coord)
+				#define SAMPLE_TEXTURE2D_LOD(tex,samplerTex,coord,lod) tex2Dlod(tex,float4(coord,0,lod))
+				#define SAMPLE_TEXTURE2D_BIAS(tex,samplerTex,coord,bias) tex2Dbias(tex,float4(coord,0,bias))
+				#define SAMPLE_TEXTURE2D_GRAD(tex,samplerTex,coord,ddx,ddy) tex2Dgrad(tex,coord,ddx,ddy)
+				#endif//ASE Sampling Macros
+				
 
+
+				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
+					#define ASE_SV_DEPTH SV_DepthLessEqual
+					#define ASE_SV_POSITION_QUALIFIERS linear noperspective centroid
+				#else
+					#define ASE_SV_DEPTH SV_Depth
+					#define ASE_SV_POSITION_QUALIFIERS
+				#endif
 
 				struct appdata
 				{
@@ -1240,7 +1370,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 
 				struct v2f
 				{
-					float4 pos : SV_POSITION;
+					ASE_SV_POSITION_QUALIFIERS float4 pos : SV_POSITION;
 					float4 worldPos : TEXCOORD0; // xyz = positionWS, w = fogCoord
 					half3 normalWS : TEXCOORD1;
 					float4 tangentWS : TEXCOORD2; // holds terrainUV ifdef ENABLE_TERRAIN_PERPIXEL_NORMAL
@@ -1263,34 +1393,42 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
-				uniform float _StencilType;
-				uniform sampler2D _MainTex;
+				UNITY_DECLARE_TEX2D_NOSAMPLER(_MainTex);
 				uniform float4 _MainTex_ST;
-				uniform float2 _MetallicSmoothstepMinMax;
-				uniform float _MetallicPower;
-				uniform sampler2D _BumpMap;
-				uniform float _BumpTiling;
-				uniform float _NormalIntensity;
-				uniform sampler2D _SpecMap;
-				uniform float4 _SpecMap_ST;
-				uniform float _Specularness;
+				SamplerState sampler_MainTex;
+				uniform float4 _Color;
+				uniform float4 _DefVals;
+				uniform float4 _Temperature;
+				uniform float _ThermalVisionOn;
+				UNITY_DECLARE_TEX2D_NOSAMPLER(_BumpMap);
+				uniform float4 _BumpMap_ST;
+				SamplerState sampler_BumpMap;
+				uniform float _SpecPower;
+				uniform float4 _SpecVals;
+				uniform float _Shininess;
 
 
+				float Grazingresponse809( float3 V )
+				{
+					float a=1-saturate(V.z); return 0.5*a*a;
+				}
 				
+				float DefValsresponse811( float4 K, float Rim )
+				{
+					return K.x + K.y * Rim;
+				}
+				
+				float3 Thermalsurfaceresponse823( float3 C, float4 T, float On )
+				{
+					return On>0 ? clamp(C*T.z,T.x,T.y)+T.w : C;
+				}
+				
+				float SpecValsresponse818( float4 K, float Rim )
+				{
+					return K.x + K.y * Rim;
+				}
+				
+
 				v2f VertexFunction (appdata v  ) {
 					UNITY_SETUP_INSTANCE_ID(v);
 					v2f o;
@@ -1449,8 +1587,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					#if defined(SHADOWS_SHADOWMASK) && (UNITY_ALLOWED_MRT_COUNT > 4)
 					, out half4 outShadowMask : SV_Target4
 					#endif
-					#if defined( ASE_DEPTH_WRITE_ON )
-					, out float outputDepth : SV_Depth
+					#if defined( ASE_WRITE_DEPTH )
+					, out float outputDepth : ASE_SV_DEPTH
 					#endif
 				)
 				{
@@ -1487,24 +1625,35 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					#endif
 
 					float2 uv_MainTex = IN.ase_texcoord4.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-					float4 tex2DNode13 = tex2D( _MainTex, uv_MainTex );
-					float smoothstepResult36 = smoothstep( _MetallicSmoothstepMinMax.x , _MetallicSmoothstepMinMax.y , tex2DNode13.a);
-					float temp_output_40_0 = pow( smoothstepResult36 , _MetallicPower );
-					float3 lerpResult21 = lerp( tex2DNode13.rgb , ( tex2DNode13.rgb * 1.5 ) , temp_output_40_0);
+					float4 tex2DNode803 = SAMPLE_TEXTURE2D( _MainTex, sampler_MainTex, uv_MainTex );
+					float4 K811 = _DefVals;
+					float3 tanToWorld0 = float3( TangentWS.x, BitangentWS.x, NormalWS.x );
+					float3 tanToWorld1 = float3( TangentWS.y, BitangentWS.y, NormalWS.y );
+					float3 tanToWorld2 = float3( TangentWS.z, BitangentWS.z, NormalWS.z );
+					float3 ase_viewVectorTS =  tanToWorld0 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).x + tanToWorld1 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).y  + tanToWorld2 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).z;
+					float3 ase_viewDirTS = normalize( ase_viewVectorTS );
+					float3 V809 = ase_viewDirTS;
+					float localGrazingresponse809 = Grazingresponse809( V809 );
+					float Rim811 = localGrazingresponse809;
+					float localDefValsresponse811 = DefValsresponse811( K811 , Rim811 );
+					float3 C823 = ( ( tex2DNode803.rgb * _Color.rgb ) * localDefValsresponse811 );
+					float4 T823 = _Temperature;
+					float On823 = _ThermalVisionOn;
+					float3 localThermalsurfaceresponse823 = Thermalsurfaceresponse823( C823 , T823 , On823 );
 					
-					float2 temp_cast_0 = (_BumpTiling).xx;
-					float2 texCoord43 = IN.ase_texcoord4.xy * temp_cast_0 + float2( 0,0 );
+					float2 uv_BumpMap = IN.ase_texcoord4.xy * _BumpMap_ST.xy + _BumpMap_ST.zw;
 					
-					float2 uv_SpecMap = IN.ase_texcoord4.xy * _SpecMap_ST.xy + _SpecMap_ST.zw;
-					float3 temp_cast_1 = (1.4).xxx;
+					float4 K818 = _SpecVals;
+					float Rim818 = localGrazingresponse809;
+					float localSpecValsresponse818 = SpecValsresponse818( K818 , Rim818 );
 					
 
-					o.Albedo = lerpResult21;
-					o.Normal = UnpackScaleNormal( tex2D( _BumpMap, texCoord43 ), _NormalIntensity );
+					o.Albedo = localThermalsurfaceresponse823;
+					o.Normal = UnpackNormal( SAMPLE_TEXTURE2D( _BumpMap, sampler_BumpMap, uv_BumpMap ) );
 
-					half3 Specular = half3( 0, 0, 0 );
-					half Metallic = temp_output_40_0;
-					half Smoothness = ( pow( tex2D( _SpecMap, uv_SpecMap ).rgb , temp_cast_1 ) * _Specularness ).x;
+					half3 Specular = ( ( ( _SpecColor.rgb * tex2DNode803.a ) * _SpecPower ) * localSpecValsresponse818 );
+					half Metallic = 0;
+					half Smoothness = _Shininess;
 					half Occlusion = 1;
 
 					#if defined(ASE_LIGHTING_SIMPLE)
@@ -1525,8 +1674,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					half AlphaClipThreshold = 0.5;
 					half3 BakedGI = 0;
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						float DeviceDepth = IN.pos.z;
+					#if defined( ASE_WRITE_DEPTH )
+						IN.pos.z = IN.pos.z;
 					#endif
 
 					#if ( ASE_FRAGMENT_NORMAL == 0 )
@@ -1541,8 +1690,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 						clip( o.Alpha - AlphaClipThreshold );
 					#endif
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						outputDepth = DeviceDepth;
+					#if defined( ASE_WRITE_DEPTH )
+						outputDepth = IN.pos.z;
 					#endif
 
 					#ifndef USING_DIRECTIONAL_LIGHT
@@ -1631,6 +1780,14 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					#endif
 				}
 			ENDCG
+			Stencil
+			{
+				Ref [_StencilType]
+				WriteMask 3
+				Comp Always
+				Pass Replace
+			}
+
 		}
 
 		
@@ -1648,7 +1805,9 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#pragma multi_compile_instancing
 				#pragma multi_compile _ LOD_FADE_CROSSFADE
 				#define ASE_FOG
-				#define ASE_VERSION 19904
+				#define _SPECULAR_SETUP 1
+				#define ASE_VERSION 19914
+				#define ASE_USING_SAMPLING_MACROS 1
 
 				#pragma vertex vert
 				#pragma fragment frag
@@ -1676,6 +1835,20 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#include "UnityMetaPass.cginc"
 
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_VERT_TANGENT
+				#define ASE_NEEDS_VERT_NORMAL
+				#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(UNITY_COMPILER_HLSLCC) || defined(SHADER_API_PSSL) || (defined(SHADER_TARGET_SURFACE_ANALYSIS) && !defined(SHADER_TARGET_SURFACE_ANALYSIS_MOJOSHADER))//ASE Sampler Macros
+				#define SAMPLE_TEXTURE2D(tex,samplerTex,coord) tex.Sample(samplerTex,coord)
+				#define SAMPLE_TEXTURE2D_LOD(tex,samplerTex,coord,lod) tex.SampleLevel(samplerTex,coord, lod)
+				#define SAMPLE_TEXTURE2D_BIAS(tex,samplerTex,coord,bias) tex.SampleBias(samplerTex,coord,bias)
+				#define SAMPLE_TEXTURE2D_GRAD(tex,samplerTex,coord,ddx,ddy) tex.SampleGrad(samplerTex,coord,ddx,ddy)
+				#else//ASE Sampling Macros
+				#define SAMPLE_TEXTURE2D(tex,samplerTex,coord) tex2D(tex,coord)
+				#define SAMPLE_TEXTURE2D_LOD(tex,samplerTex,coord,lod) tex2Dlod(tex,float4(coord,0,lod))
+				#define SAMPLE_TEXTURE2D_BIAS(tex,samplerTex,coord,bias) tex2Dbias(tex,float4(coord,0,bias))
+				#define SAMPLE_TEXTURE2D_GRAD(tex,samplerTex,coord,ddx,ddy) tex2Dgrad(tex,coord,ddx,ddy)
+				#endif//ASE Sampling Macros
+				
 
 
 				struct appdata
@@ -1698,6 +1871,10 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 						float4 lightCoord : TEXCOORD1;
 					#endif
 					float4 ase_texcoord2 : TEXCOORD2;
+					float4 ase_texcoord3 : TEXCOORD3;
+					float4 ase_texcoord4 : TEXCOORD4;
+					float4 ase_texcoord5 : TEXCOORD5;
+					float4 ase_texcoord6 : TEXCOORD6;
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 					UNITY_VERTEX_OUTPUT_STEREO
 				};
@@ -1711,28 +1888,31 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
-				uniform float _StencilType;
-				uniform sampler2D _MainTex;
+				UNITY_DECLARE_TEX2D_NOSAMPLER(_MainTex);
 				uniform float4 _MainTex_ST;
-				uniform float2 _MetallicSmoothstepMinMax;
-				uniform float _MetallicPower;
+				SamplerState sampler_MainTex;
+				uniform float4 _Color;
+				uniform float4 _DefVals;
+				uniform float4 _Temperature;
+				uniform float _ThermalVisionOn;
 
 
+				float Grazingresponse809( float3 V )
+				{
+					float a=1-saturate(V.z); return 0.5*a*a;
+				}
 				
+				float DefValsresponse811( float4 K, float Rim )
+				{
+					return K.x + K.y * Rim;
+				}
+				
+				float3 Thermalsurfaceresponse823( float3 C, float4 T, float On )
+				{
+					return On>0 ? clamp(C*T.z,T.x,T.y)+T.w : C;
+				}
+				
+
 				v2f VertexFunction( appdata v  )
 				{
 					UNITY_SETUP_INSTANCE_ID(v);
@@ -1741,10 +1921,24 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					UNITY_TRANSFER_INSTANCE_ID(v,o);
 					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
+					float3 ase_positionWS = mul( unity_ObjectToWorld, float4( ( v.vertex ).xyz, 1 ) ).xyz;
+					o.ase_texcoord3.xyz = ase_positionWS;
+					float3 ase_tangentWS = UnityObjectToWorldDir( v.tangent );
+					o.ase_texcoord4.xyz = ase_tangentWS;
+					float3 ase_normalWS = UnityObjectToWorldNormal( v.normal );
+					o.ase_texcoord5.xyz = ase_normalWS;
+					float ase_tangentSign = v.tangent.w * ( unity_WorldTransformParams.w >= 0.0 ? 1.0 : -1.0 );
+					float3 ase_bitangentWS = cross( ase_normalWS, ase_tangentWS ) * ase_tangentSign;
+					o.ase_texcoord6.xyz = ase_bitangentWS;
+					
 					o.ase_texcoord2.xy = v.texcoord.xyzw.xy;
 					
 					//setting value to unused interpolator channels and avoid initialization warnings
 					o.ase_texcoord2.zw = 0;
+					o.ase_texcoord3.w = 0;
+					o.ase_texcoord4.w = 0;
+					o.ase_texcoord5.w = 0;
+					o.ase_texcoord6.w = 0;
 
 					#ifdef ASE_ABSOLUTE_VERTEX_POS
 						float3 defaultVertexValue = v.vertex.xyz;
@@ -1887,13 +2081,28 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					#endif
 
 					float2 uv_MainTex = IN.ase_texcoord2.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-					float4 tex2DNode13 = tex2D( _MainTex, uv_MainTex );
-					float smoothstepResult36 = smoothstep( _MetallicSmoothstepMinMax.x , _MetallicSmoothstepMinMax.y , tex2DNode13.a);
-					float temp_output_40_0 = pow( smoothstepResult36 , _MetallicPower );
-					float3 lerpResult21 = lerp( tex2DNode13.rgb , ( tex2DNode13.rgb * 1.5 ) , temp_output_40_0);
+					float4 tex2DNode803 = SAMPLE_TEXTURE2D( _MainTex, sampler_MainTex, uv_MainTex );
+					float4 K811 = _DefVals;
+					float3 ase_positionWS = IN.ase_texcoord3.xyz;
+					float3 ase_tangentWS = IN.ase_texcoord4.xyz;
+					float3 ase_normalWS = IN.ase_texcoord5.xyz;
+					float3 ase_bitangentWS = IN.ase_texcoord6.xyz;
+					float3 tanToWorld0 = float3( ase_tangentWS.x, ase_bitangentWS.x, ase_normalWS.x );
+					float3 tanToWorld1 = float3( ase_tangentWS.y, ase_bitangentWS.y, ase_normalWS.y );
+					float3 tanToWorld2 = float3( ase_tangentWS.z, ase_bitangentWS.z, ase_normalWS.z );
+					float3 ase_viewVectorTS =  tanToWorld0 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - ase_positionWS : UNITY_MATRIX_V[ 2 ].xyz ).x + tanToWorld1 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - ase_positionWS : UNITY_MATRIX_V[ 2 ].xyz ).y  + tanToWorld2 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - ase_positionWS : UNITY_MATRIX_V[ 2 ].xyz ).z;
+					float3 ase_viewDirTS = normalize( ase_viewVectorTS );
+					float3 V809 = ase_viewDirTS;
+					float localGrazingresponse809 = Grazingresponse809( V809 );
+					float Rim811 = localGrazingresponse809;
+					float localDefValsresponse811 = DefValsresponse811( K811 , Rim811 );
+					float3 C823 = ( ( tex2DNode803.rgb * _Color.rgb ) * localDefValsresponse811 );
+					float4 T823 = _Temperature;
+					float On823 = _ThermalVisionOn;
+					float3 localThermalsurfaceresponse823 = Thermalsurfaceresponse823( C823 , T823 , On823 );
 					
 
-					o.Albedo = lerpResult21;
+					o.Albedo = localThermalsurfaceresponse823;
 					o.Normal = half3( 0, 0, 1 );
 					o.Emission = half3( 0, 0, 0 );
 					o.Alpha = 1;
@@ -1933,7 +2142,9 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#pragma multi_compile_instancing
 				#pragma multi_compile _ LOD_FADE_CROSSFADE
 				#define ASE_FOG
-				#define ASE_VERSION 19904
+				#define _SPECULAR_SETUP 1
+				#define ASE_VERSION 19914
+				#define ASE_USING_SAMPLING_MACROS 1
 
 				#pragma vertex vert
 				#pragma fragment frag
@@ -1961,6 +2172,14 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 
 				
 
+				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
+					#define ASE_SV_DEPTH SV_DepthLessEqual
+					#define ASE_SV_POSITION_QUALIFIERS linear noperspective centroid
+				#else
+					#define ASE_SV_DEPTH SV_Depth
+					#define ASE_SV_POSITION_QUALIFIERS
+				#endif
+
 				struct appdata
 				{
 					float4 vertex : POSITION;
@@ -1974,7 +2193,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 
 				struct v2f
 				{
-					V2F_SHADOW_CASTER;
+					ASE_SV_POSITION_QUALIFIERS UNITY_POSITION( pos );
+					V2F_SHADOW_CASTER_NOPOS
 					
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 					UNITY_VERTEX_OUTPUT_STEREO
@@ -1992,22 +2212,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
-				uniform float _StencilType;
-
+				
 
 				
 				v2f VertexFunction( appdata v  )
@@ -2133,8 +2338,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#endif
 
 				half4 frag( v2f IN 
-							#if defined( ASE_DEPTH_WRITE_ON )
-								, out float outputDepth : SV_Depth
+							#if defined( ASE_WRITE_DEPTH )
+								, out float outputDepth : ASE_SV_DEPTH
 							#endif
 							) : SV_Target
 				{
@@ -2163,8 +2368,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					half AlphaClipThreshold = 0.5;
 					half AlphaClipThresholdShadow = 0.5;
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						float DeviceDepth = IN.pos.z;
+					#if defined( ASE_WRITE_DEPTH )
+						IN.pos.z = IN.pos.z;
 					#endif
 
 					#ifdef _ALPHATEST_SHADOW_ON
@@ -2185,8 +2390,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 						clip(alphaRef - 0.01);
 					#endif
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						outputDepth = DeviceDepth;
+					#if defined( ASE_WRITE_DEPTH )
+						outputDepth = IN.pos.z;
 					#endif
 
 					SHADOW_CASTER_FRAGMENT(IN)
@@ -2210,13 +2415,15 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#pragma multi_compile_instancing
 				#pragma multi_compile _ LOD_FADE_CROSSFADE
 				#define ASE_FOG
-				#define ASE_VERSION 19904
+				#define _SPECULAR_SETUP 1
+				#define ASE_VERSION 19914
+				#define ASE_USING_SAMPLING_MACROS 1
 
 				#pragma vertex vert
 				#pragma fragment frag
 				#pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
-
 				#pragma multi_compile_fwdbase
+				#define SCENESELECTIONPASS
 				#ifndef UNITY_PASS_FORWARDBASE
 					#define UNITY_PASS_FORWARDBASE
 				#endif
@@ -2239,6 +2446,14 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#include "AutoLight.cginc"
 
 				
+
+				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
+					#define ASE_SV_DEPTH SV_DepthLessEqual
+					#define ASE_SV_POSITION_QUALIFIERS linear noperspective centroid
+				#else
+					#define ASE_SV_DEPTH SV_Depth
+					#define ASE_SV_POSITION_QUALIFIERS
+				#endif
 
 				int _ObjectId;
 				int _PassValue;
@@ -2254,7 +2469,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 
 				struct v2f
 				{
-					float4 pos : SV_POSITION;
+					ASE_SV_POSITION_QUALIFIERS float4 pos : SV_POSITION;
 					float4 worldPos : TEXCOORD0; // xyz = positionWS
 					half3 normalWS : TEXCOORD1;
 					
@@ -2271,22 +2486,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
-				uniform float _StencilType;
-
+				
 
 				
 				v2f VertexFunction( appdata v  )
@@ -2328,6 +2528,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				{
 					float4 vertex : INTERNALTESSPOS;
 					half3 normal : NORMAL;
+					half4 tangent : TANGENT;
 					
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 				};
@@ -2345,6 +2546,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					UNITY_TRANSFER_INSTANCE_ID(v, o);
 					o.vertex = v.vertex;
 					o.normal = v.normal;
+					o.tangent = v.tangent;
 					
 					return o;
 				}
@@ -2384,6 +2586,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					appdata o = (appdata) 0;
 					o.vertex = patch[0].vertex * bary.x + patch[1].vertex * bary.y + patch[2].vertex * bary.z;
 					o.normal = patch[0].normal * bary.x + patch[1].normal * bary.y + patch[2].normal * bary.z;
+					o.tangent = patch[0].tangent * bary.x + patch[1].tangent * bary.y + patch[2].tangent * bary.z;
 					
 					#if defined(ASE_PHONG_TESSELLATION)
 					float3 pp[3];
@@ -2403,8 +2606,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#endif
 
 				half4 frag( v2f IN 
-							#if defined( ASE_DEPTH_WRITE_ON )
-								, out float outputDepth : SV_Depth
+							#if defined( ASE_WRITE_DEPTH )
+								, out float outputDepth : ASE_SV_DEPTH
 							#endif
 							) : SV_Target
 				{
@@ -2419,16 +2622,16 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					half Alpha = 1;
 					half AlphaClipThreshold = 0.5;
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						float DeviceDepth = IN.pos.z;
+					#if defined( ASE_WRITE_DEPTH )
+						IN.pos.z = IN.pos.z;
 					#endif
 
 					#ifdef _ALPHATEST_ON
 						clip( Alpha - AlphaClipThreshold );
 					#endif
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						outputDepth = DeviceDepth;
+					#if defined( ASE_WRITE_DEPTH )
+						outputDepth = IN.pos.z;
 					#endif
 
 					return float4( _ObjectId, _PassValue, 1.0, 1.0 );
@@ -2441,7 +2644,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 		{
 			
 			Name "ScenePickingPass"
-			Tags { "LightMode"="ScenePickingPass" }
+			Tags { "LightMode"="Picking" }
 
 			ZWrite On
 
@@ -2452,7 +2655,9 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#pragma multi_compile_instancing
 				#pragma multi_compile _ LOD_FADE_CROSSFADE
 				#define ASE_FOG
-				#define ASE_VERSION 19904
+				#define _SPECULAR_SETUP 1
+				#define ASE_VERSION 19914
+				#define ASE_USING_SAMPLING_MACROS 1
 
 				#pragma vertex vert
 				#pragma fragment frag
@@ -2462,6 +2667,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#ifndef UNITY_PASS_FORWARDBASE
 					#define UNITY_PASS_FORWARDBASE
 				#endif
+				#define SCENEPICKINGPASS
 				#include "HLSLSupport.cginc"
 				#if defined( ASE_GEOMETRY ) || defined( ASE_IMPOSTOR )
 					#ifndef UNITY_INSTANCED_LOD_FADE
@@ -2482,6 +2688,14 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 
 				
 
+				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
+					#define ASE_SV_DEPTH SV_DepthLessEqual
+					#define ASE_SV_POSITION_QUALIFIERS linear noperspective centroid
+				#else
+					#define ASE_SV_DEPTH SV_Depth
+					#define ASE_SV_POSITION_QUALIFIERS
+				#endif
+
 				float4 _SelectionID;
 
 				struct appdata
@@ -2495,7 +2709,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 
 				struct v2f
 				{
-					float4 pos : SV_POSITION;
+					ASE_SV_POSITION_QUALIFIERS float4 pos : SV_POSITION;
 					float4 worldPos : TEXCOORD0; // xyz = positionWS
 					half3 normalWS : TEXCOORD1;
 					
@@ -2512,22 +2726,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
-				uniform float _StencilType;
-
+				
 
 				
 				v2f VertexFunction( appdata v  )
@@ -2569,6 +2768,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				{
 					float4 vertex : INTERNALTESSPOS;
 					half3 normal : NORMAL;
+					half4 tangent : TANGENT;
 					
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 				};
@@ -2586,6 +2786,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					UNITY_TRANSFER_INSTANCE_ID(v, o);
 					o.vertex = v.vertex;
 					o.normal = v.normal;
+					o.tangent = v.tangent;
 					
 					return o;
 				}
@@ -2625,6 +2826,7 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					appdata o = (appdata) 0;
 					o.vertex = patch[0].vertex * bary.x + patch[1].vertex * bary.y + patch[2].vertex * bary.z;
 					o.normal = patch[0].normal * bary.x + patch[1].normal * bary.y + patch[2].normal * bary.z;
+					o.tangent = patch[0].tangent * bary.x + patch[1].tangent * bary.y + patch[2].tangent * bary.z;
 					
 					#if defined(ASE_PHONG_TESSELLATION)
 					float3 pp[3];
@@ -2644,8 +2846,8 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 				#endif
 
 				half4 frag( v2f IN 
-							#if defined( ASE_DEPTH_WRITE_ON )
-								, out float outputDepth : SV_Depth
+							#if defined( ASE_WRITE_DEPTH )
+								, out float outputDepth : ASE_SV_DEPTH
 							#endif
 							) : SV_Target
 				{
@@ -2660,16 +2862,16 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 					half Alpha = 1;
 					half AlphaClipThreshold = 0.5;
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						float DeviceDepth = IN.pos.z;
+					#if defined( ASE_WRITE_DEPTH )
+						IN.pos.z = IN.pos.z;
 					#endif
 
 					#ifdef _ALPHATEST_ON
 						clip( Alpha - AlphaClipThreshold );
 					#endif
 
-					#if defined( ASE_DEPTH_WRITE_ON )
-						outputDepth = DeviceDepth;
+					#if defined( ASE_WRITE_DEPTH )
+						outputDepth = IN.pos.z;
 					#endif
 
 					return _SelectionID;
@@ -2678,88 +2880,70 @@ Shader "Tarkov Replacements/Standard SMAP Metallic Replacement"
 		}
 		
 	}
+	
 	CustomEditor "AmplifyShaderEditor.MaterialInspector"
 	
+
 	Fallback Off
 }
 /*ASEBEGIN
-Version=19904
-Node;AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;11;-1600,-192;Inherit;True;Property;_TextureSample0;Texture Sample 0;3;0;Create;True;0;0;0;False;0;False;8;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;False;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;13;-1616,96;Inherit;True;Property;_TextureSample2;Texture Sample 0;3;0;Create;True;0;0;0;False;0;False;9;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;False;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.LerpOp, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;21;-400,-176;Inherit;True;3;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;2;FLOAT;0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;22;-784,-224;Inherit;False;2;2;0;FLOAT3;0,0,0;False;1;FLOAT;0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;23;-976,-160;Inherit;False;Constant;_Float3;Float 3;3;0;Create;True;0;0;0;False;0;False;1.5;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;39;-864,736;Inherit;False;Constant;_Vector2;Vector 0;3;0;Create;True;0;0;0;False;0;False;0.25,0.75,0,1;0,0,0,0;0;5;FLOAT4;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.PowerNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;40;-544,496;Inherit;True;False;2;0;FLOAT;0;False;1;FLOAT;1;False;1;FLOAT;0
-Node;AmplifyShaderEditor.TFHCRemapNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;38;-624,736;Inherit;True;5;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;1;False;3;FLOAT;0;False;4;FLOAT;1;False;1;FLOAT;0
-Node;AmplifyShaderEditor.SmoothstepOpNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;36;-864,528;Inherit;True;3;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;1;False;1;FLOAT;0
-Node;AmplifyShaderEditor.TextureCoordinatesNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;43;-1904,592;Inherit;False;0;-1;2;3;2;SAMPLER2D;;False;0;FLOAT2;1,1;False;1;FLOAT2;0,0;False;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;10;-1904,384;Inherit;True;Property;_BumpMap;Normal Map;6;1;[Normal];Create;False;0;0;0;False;0;False;None;df5158b9303c27b40895987a3b9b0fd4;True;bump;Auto;Texture2D;False;-1;0;2;SAMPLER2D;0;SAMPLERSTATE;1
-Node;AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;49;-1616,384;Inherit;True;Property;_TextureSample12;Texture Sample 12;6;0;Create;True;0;0;0;False;0;False;-1;None;None;True;0;False;white;Auto;True;Object;-1;Auto;Texture2D;False;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;78;-2144,400;Inherit;False;Global;_HeatThermalFactor;_HeatThermalFactor;15;1;[HideInInspector];Create;False;0;0;0;False;0;False;0;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;57;-2144,496;Inherit;False;Global;_ThermalVisionOn;_ThermalVisionOn;11;0;Create;True;0;0;0;False;0;False;0;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;44;-2576,-672;Inherit;False;Property;_NormalIntensity;Normal Intensity;7;0;Create;True;0;0;0;False;0;False;1;1;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;79;-2576,-432;Inherit;False;Property;_RippleTexScale;Ripple Texture Scale;10;0;Create;False;0;0;0;True;0;False;4;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;80;-2608,-352;Inherit;False;Property;_RippleFakeLightIntensityOffset;Fake Ripple Light Offset;11;0;Create;False;0;0;0;True;0;False;0.7;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;81;-2640,-272;Inherit;False;Property;_NightRippleFakeLightOffset;Fake Night Ripple Light Offset;12;0;Create;False;0;0;0;True;0;False;0.2;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;82;-2608,-192;Inherit;False;Property;_NdotLOffset;Normal Dot Light Offset;13;0;Create;False;0;0;0;True;0;False;0.4;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.ColorNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;52;-2576,368;Inherit;False;Property;_HeatColor1;Heat Color 1;19;1;[HDR];Create;False;0;0;0;True;0;False;1,0,0,1;0,0,0,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.ColorNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;51;-2576,576;Inherit;False;Property;_HeatColor2;Heat Color 2;20;1;[HDR];Create;False;0;0;0;True;0;False;1,0.34,0,1;0,0,0,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.Vector3Node, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;77;-2608,208;Inherit;False;Property;_Temperature;Temperature Settings;18;0;Create;False;0;0;0;True;0;False;0.1,0.2,0.28;0,0,0;0;4;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3
-Node;AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;62;-2608,960;Inherit;False;Property;_HeatSize;Heat Size;22;0;Create;False;0;0;0;True;0;False;0.02,0.04,0.02,1;0.02,0.04,0.02,0;0;5;FLOAT4;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;61;-2544,784;Inherit;False;Property;_HeatCenter;Heat Center;21;0;Create;False;0;0;0;True;0;False;0,0,0,1;0,0,0,1;0;5;FLOAT4;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;60;-2576,1136;Inherit;False;Property;_HeatTemp;Heat Temperature;23;0;Create;False;0;0;0;True;0;False;0;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;45;-2544,-592;Inherit;False;Property;_BumpTiling;Normal Tiling;8;0;Create;False;0;0;0;False;0;False;1;1;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;50;-2544,-512;Inherit;False;Property;_DropsSpec;Drops Spec;9;1;[Header];Create;False;1;Rain Settings;0;0;True;1;Space(10);False;128;128;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;84;-2608,-32;Inherit;False;Property;_SkinnedMeshMaterial;Skinned Mesh Material;15;1;[HideInInspector];Create;False;0;0;0;False;0;False;0;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;83;-2608,-112;Inherit;False;Property;_USERAIN;Material Effected By Rain;14;1;[Toggle];Create;False;0;0;0;True;0;False;0;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;59;-2576,48;Inherit;False;Property;USEHEAT;Use Metal Heat Glow;16;2;[Header];[Toggle];Create;False;1;Heat Settings;0;0;True;1;Space(10);False;0;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;58;-2576,128;Inherit;False;Property;_HeatVisible;Heat Visibility (0-1);17;0;Create;False;0;0;0;True;0;False;1;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;9;-2000,96;Inherit;True;Property;_MainTex;(Diffuse) Base (RGB) Specular (A);1;0;Create;False;0;0;0;False;0;False;None;d06cc234737099649b9965a9e4dfb188;False;black;Auto;Texture2D;False;-1;0;2;SAMPLER2D;0;SAMPLERSTATE;1
-Node;AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;8;-1920,-192;Inherit;True;Property;_SpecMap;Gloss Map;2;0;Create;False;0;0;0;False;0;False;None;b19b373f8ff4f8a48a18d2898d3c1d23;False;gray;Auto;Texture2D;False;-1;0;2;SAMPLER2D;0;SAMPLERSTATE;1
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;15;-1184,192;Inherit;False;Constant;_Float0;Float 0;3;0;Create;True;0;0;0;False;0;False;1.4;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.PowerNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;14;-992,80;Inherit;True;False;2;0;FLOAT3;0,0,0;False;1;FLOAT;1;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;85;-432,80;Inherit;False;2;2;0;FLOAT3;0,0,0;False;1;FLOAT;0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;42;-2640,-832;Inherit;False;Property;_StencilType;Stencil Type;0;0;Create;True;0;3;Static;0;Character;1;Hands;2;0;True;1;MaterialEnum(Static, 0, Characters, 1, Hands, 2);False;0;2;0;2;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;86;-2640,-752;Inherit;False;Property;_Specularness;Smoothness;3;0;Create;False;0;0;0;False;0;False;1;0;0;10;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;41;-832,464;Inherit;False;Property;_MetallicPower;Metallic Power;4;0;Create;True;0;0;0;False;0;False;1.4;1.4;0;5;0;1;FLOAT;0
-Node;AmplifyShaderEditor.Vector2Node, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;37;-1168,528;Inherit;False;Property;_MetallicSmoothstepMinMax;Metallic Smoothstep Min Max;5;0;Create;True;0;0;0;True;0;False;0.2,0.85;0.2,0.85;0;3;FLOAT2;0;FLOAT;1;FLOAT;2
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;0;0,0;Float;False;False;-1;3;AmplifyShaderEditor.MaterialInspector;0;1;New Amplify Shader;ed95fe726fd7b4644bb42f4d1ddd2bcd;True;ExtraPrePass;0;0;ExtraPrePass;6;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;False;True;3;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;DisableBatching=False=DisableBatching;True;3;False;0;False;True;1;1;False;;0;False;;0;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;LightMode=ForwardBase;False;False;0;;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;2;0,0;Float;False;False;-1;3;AmplifyShaderEditor.MaterialInspector;0;1;New Amplify Shader;ed95fe726fd7b4644bb42f4d1ddd2bcd;True;ForwardAdd;0;2;ForwardAdd;0;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;False;True;3;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;DisableBatching=False=DisableBatching;True;3;False;0;False;True;4;1;False;;1;False;;0;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;2;False;;False;False;True;1;LightMode=ForwardAdd;False;False;0;;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;3;0,0;Float;False;False;-1;3;AmplifyShaderEditor.MaterialInspector;0;1;New Amplify Shader;ed95fe726fd7b4644bb42f4d1ddd2bcd;True;Deferred;0;3;Deferred;0;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;False;True;3;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;DisableBatching=False=DisableBatching;True;3;False;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=Deferred;False;False;0;;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;4;0,0;Float;False;False;-1;3;AmplifyShaderEditor.MaterialInspector;0;1;New Amplify Shader;ed95fe726fd7b4644bb42f4d1ddd2bcd;True;Meta;0;4;Meta;0;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;False;True;3;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;DisableBatching=False=DisableBatching;True;3;False;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;2;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=Meta;False;False;0;;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;5;0,0;Float;False;False;-1;3;AmplifyShaderEditor.MaterialInspector;0;1;New Amplify Shader;ed95fe726fd7b4644bb42f4d1ddd2bcd;True;ShadowCaster;0;5;ShadowCaster;0;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;False;True;3;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;DisableBatching=False=DisableBatching;True;3;False;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=ShadowCaster;False;False;0;;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;6;0,0;Float;False;False;-1;3;AmplifyShaderEditor.MaterialInspector;0;1;New Amplify Shader;ed95fe726fd7b4644bb42f4d1ddd2bcd;True;SceneSelectionPass;0;6;SceneSelectionPass;0;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;False;True;3;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;DisableBatching=False=DisableBatching;True;3;False;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;False;False;True;1;LightMode=SceneSelectionPass;False;False;0;;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;7;0,0;Float;False;False;-1;3;AmplifyShaderEditor.MaterialInspector;0;1;New Amplify Shader;ed95fe726fd7b4644bb42f4d1ddd2bcd;True;ScenePickingPass;0;7;ScenePickingPass;0;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;False;True;3;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;DisableBatching=False=DisableBatching;True;3;False;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;False;False;True;1;LightMode=ScenePickingPass;False;False;0;;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;1;0,0;Float;False;True;-1;3;AmplifyShaderEditor.MaterialInspector;0;4;Tarkov Replacements/Standard SMAP Metallic Replacement;ed95fe726fd7b4644bb42f4d1ddd2bcd;True;ForwardBase;0;1;ForwardBase;17;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;True;True;True;0;True;_StencilType;255;False;;3;False;;7;False;;3;False;;1;False;;1;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;False;True;3;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;DisableBatching=False=DisableBatching;True;3;False;0;False;True;1;1;False;;0;False;;0;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=ForwardBase;False;False;0;;0;0;Standard;44;Category;0;0;  Instanced Terrain Normals;1;0;Workflow;1;0;Surface;0;0;  Blend;0;0;  Dither Shadows;1;0;Two Sided;1;0;Alpha Clipping;0;0;  Use Shadow Threshold;0;0;Deferred Pass;1;0;Normal Space;0;0;Transmission;0;0;  Transmission Shadow;0.5,False,;0;Translucency;0;0;  Translucency Strength;1,False,;0;  Normal Distortion;0.5,False,;0;  Scattering;2,False,;0;  Direct;0.9,False,;0;  Ambient;0.1,False,;0;  Shadow;0.5,False,;0;Cast Shadows;1;0;Receive Shadows;1;0;Receive Specular;1;638965988478672004;Receive Reflections;1;638965988492216648;GPU Instancing;1;0;LOD CrossFade;1;0;Built-in Fog;1;0;Ambient Light;1;0;Meta Pass;1;0;Add Pass;1;0;Override Baked GI;0;0;Write Depth;0;0;Extra Pre Pass;0;0;Tessellation;0;0;  Phong;0;0;  Strength;0.5,False,;0;  Type;0;0;  Tess;16,False,;0;  Min;10,False,;0;  Max;25,False,;0;  Edge Length;16,False,;0;  Max Displacement;25,False,;0;Disable Batching;0;0;Vertex Position;1;0;0;8;False;True;True;True;True;True;True;True;False;;False;0
-WireConnection;11;0;8;0
-WireConnection;13;0;9;0
-WireConnection;21;0;13;5
-WireConnection;21;1;22;0
-WireConnection;21;2;40;0
-WireConnection;22;0;13;5
-WireConnection;22;1;23;0
-WireConnection;40;0;36;0
-WireConnection;40;1;41;0
-WireConnection;38;0;36;0
-WireConnection;38;1;39;1
-WireConnection;38;2;39;2
-WireConnection;38;3;39;3
-WireConnection;38;4;39;4
-WireConnection;36;0;13;4
-WireConnection;36;1;37;1
-WireConnection;36;2;37;2
-WireConnection;43;0;45;0
-WireConnection;49;0;10;0
-WireConnection;49;1;43;0
-WireConnection;49;5;44;0
-WireConnection;14;0;11;5
-WireConnection;14;1;15;0
-WireConnection;85;0;14;0
-WireConnection;85;1;86;0
-WireConnection;1;0;21;0
-WireConnection;1;1;49;0
-WireConnection;1;4;40;0
-WireConnection;1;5;85;0
+Version=19914
+{"type":"AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor","id":801,"pos":[-2460,-500],"params":["Inherit","True","Property","_Sample801","BumpMap Sample","6","0","Create","True","0","0","0","False","0","False","","802","None","None","True","0","False","white","Auto","True","Object","-1","Auto","Texture2D","False","8","0","SAMPLER2D","","False","1","FLOAT2","0,0","False","2","FLOAT","0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","5","FLOAT","1","False","6","FLOAT","0","False","7","SAMPLERSTATE","","False","6","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor","id":802,"pos":[-3300,-500],"params":["Inherit","True","Property","_BumpMap","Normalmap","0","0","Create","False","0","0","0","False","0","False","","None","None","False","bump","Auto","Texture2D","False","-1","0","2","SAMPLER2D","0","SAMPLERSTATE","1"]}
+{"type":"AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor","id":803,"pos":[-2460,-260],"params":["Inherit","True","Property","_Sample803","MainTex Sample","3","0","Create","True","0","0","0","False","0","False","","804","None","None","True","0","False","white","Auto","False","Object","-1","Auto","Texture2D","False","8","0","SAMPLER2D","","False","1","FLOAT2","0,0","False","2","FLOAT","0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","5","FLOAT","1","False","6","FLOAT","0","False","7","SAMPLERSTATE","","False","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor","id":804,"pos":[-3300,-260],"params":["Inherit","True","Property","_MainTex","Base (RGB) RefStrGloss (A)","1","0","Create","False","0","0","0","False","0","False","","None","None","False","white","Auto","Texture2D","False","-1","0","2","SAMPLER2D","0","SAMPLERSTATE","1"]}
+{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":805,"pos":[-3300,-20],"params":["Inherit","False","Property","_Color","Main Color","2","0","Create","False","0","0","0","False","0","False","Object","-1","","1,1,1,1","1,1,1,1","True","True","0","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":806,"pos":[-1620,-500],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":807,"pos":[-1620,-260],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.ViewDirInputsCoordNode, AmplifyShaderEditor","id":808,"pos":[-2460,-20],"params":["Inherit","False","Tangent","False","0","4","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3"]}
+{"type":"AmplifyShaderEditor.CustomExpressionNode, AmplifyShaderEditor","id":809,"pos":[-2040,-500],"params":["Float","False","float a=1-saturate(V.z); return 0.5*a*a;","1","Create","1","True","V","FLOAT3","0,0,0","In","","Inherit","False","Grazing response","True","False","0","","False","1","0","FLOAT3","0,0,0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor","id":810,"pos":[-3300,220],"params":["Inherit","False","Property","_DefVals","Defuse Vals","3","0","Create","False","0","0","0","False","0","False","Object","-1","","0.5,0.7,0,0","0.5,0.7,0,0","0","5","FLOAT4","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
+{"type":"AmplifyShaderEditor.CustomExpressionNode, AmplifyShaderEditor","id":811,"pos":[-1620,-20],"params":["Float","False","return K.x + K.y * Rim;","1","Create","2","True","K","FLOAT4","0,0,0,0","In","","Inherit","False","True","Rim","FLOAT","0","In","","Inherit","False","DefVals response","True","False","0","","False","2","0","FLOAT4","0,0,0,0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":812,"pos":[-1620,220],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":813,"pos":[-3300,460],"params":["Inherit","False","Property","_SpecColor","Specular Color","4","0","Fetch","False","0","0","0","False","0","False","Object","-1","","0.5,0.5,0.5,1","0.5,0.5,0.5,1","True","True","0","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":814,"pos":[-1620,460],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":815,"pos":[-3300,700],"params":["Inherit","False","Property","_SpecPower","Specular Power","5","0","Create","False","0","0","0","False","0","False","Object","-1","","1","1","0.01","10","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":816,"pos":[-1620,700],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor","id":817,"pos":[-3300,940],"params":["Inherit","False","Property","_SpecVals","Specular Vals","6","0","Create","False","0","0","0","False","0","False","Object","-1","","1.1,2,0,0","1.1,2,0,0","0","5","FLOAT4","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
+{"type":"AmplifyShaderEditor.CustomExpressionNode, AmplifyShaderEditor","id":818,"pos":[-1620,940],"params":["Float","False","return K.x + K.y * Rim;","1","Create","2","True","K","FLOAT4","0,0,0,0","In","","Inherit","False","True","Rim","FLOAT","0","In","","Inherit","False","SpecVals response","True","False","0","","False","2","0","FLOAT4","0,0,0,0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":819,"pos":[-1620,1180],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":820,"pos":[-3300,1180],"params":["Inherit","False","Property","_Shininess","Shininess","7","0","Create","False","0","0","0","False","0","False","Object","-1","","0.078125","0.078125","0.01","1","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor","id":821,"pos":[-3300,1420],"params":["Inherit","False","Property","_Temperature","_Temperature(min, max, factor)","8","0","Create","False","0","0","0","False","0","False","Object","-1","","0.1,0.2,0.25,0","0.1,0.2,0.25,0","0","5","FLOAT4","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":822,"pos":[-3300,1660],"params":["Inherit","False","Global","_ThermalVisionOn","ThermalVisionOn","11","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.CustomExpressionNode, AmplifyShaderEditor","id":823,"pos":[-360,-500],"params":["Float","False","return On>0 ? clamp(C*T.z,T.x,T.y)+T.w : C;","3","Create","3","True","C","FLOAT3","0,0,0","In","","Inherit","False","True","T","FLOAT4","0,0,0,0","In","","Inherit","False","True","On","FLOAT","0","In","","Inherit","False","Thermal surface response","True","False","0","","False","3","0","FLOAT3","0,0,0","False","1","FLOAT4","0,0,0,0","False","2","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":0,"pos":[700,700],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","3","New Amplify Shader","800ea5b38ca15d39b1bbf07d5e13e223","True","ExtraPrePass","0","0","ExtraPrePass","6","False","True","0","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","True","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","True","1","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","False","True","True","0","False","","True","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","False","True","1","LightMode=ForwardBase","False","False","0","","178","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","RenderType=Opaque","Queue=Geometry","DisableBatching=False","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","LightMode=ForwardBase","=","=","=","=","=","=","=","=","=","=","0","Standard","0","True","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":2,"pos":[750,1100],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","3","New Amplify Shader","800ea5b38ca15d39b1bbf07d5e13e223","True","ForwardAdd","0","2","ForwardAdd","0","False","True","0","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","True","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","True","4","1","False","","1","False","","0","1","False","","0","False","","False","False","False","False","False","False","False","False","False","False","False","True","False","True","False","False","False","False","False","False","False","False","True","True","0","True","_StencilType","255","False","","3","False","","7","False","","3","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","2","False","","False","False","False","True","1","LightMode=ForwardAdd","False","False","0","","118","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","RenderType=Opaque","Queue=Geometry","DisableBatching=False","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","LightMode=ForwardAdd","=","=","=","=","=","=","=","=","=","=","0","Standard","0","True","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":3,"pos":[775,1300],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","3","New Amplify Shader","800ea5b38ca15d39b1bbf07d5e13e223","True","Deferred","0","3","Deferred","0","False","True","0","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","True","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","True","0","False","","True","False","True","False","False","False","False","False","False","False","False","True","True","0","True","_StencilType","255","False","","3","False","","7","False","","3","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","False","False","False","False","True","1","LightMode=Deferred","False","False","0","","104","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","RenderType=Opaque","Queue=Geometry","DisableBatching=False","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","LightMode=Deferred","=","=","=","=","=","=","=","=","=","=","0","Standard","0","True","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":4,"pos":[800,1500],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","3","New Amplify Shader","800ea5b38ca15d39b1bbf07d5e13e223","True","Meta","0","4","Meta","0","False","True","0","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","True","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","False","True","True","2","False","","True","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","LightMode=Meta","False","False","0","","104","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","RenderType=Opaque","Queue=Geometry","DisableBatching=False","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","LightMode=Meta","=","=","=","=","=","=","=","=","=","=","0","Standard","0","True","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":5,"pos":[825,1700],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","3","New Amplify Shader","800ea5b38ca15d39b1bbf07d5e13e223","True","ShadowCaster","0","5","ShadowCaster","0","False","True","0","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","True","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","True","0","False","","True","False","True","False","False","False","False","False","False","False","False","False","False","True","1","False","","True","3","False","","False","False","True","1","LightMode=ShadowCaster","False","False","0","","110","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","RenderType=Opaque","Queue=Geometry","DisableBatching=False","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","LightMode=ShadowCaster","=","=","=","=","=","=","=","=","=","=","0","Standard","0","True","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":6,"pos":[850,1900],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","3","New Amplify Shader","800ea5b38ca15d39b1bbf07d5e13e223","True","SceneSelectionPass","0","6","SceneSelectionPass","0","False","True","0","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","True","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","False","True","False","True","False","False","False","False","False","False","False","False","False","False","True","1","False","","False","False","False","True","1","LightMode=SceneSelectionPass","False","False","0","","104","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","RenderType=Opaque","Queue=Geometry","DisableBatching=False","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","LightMode=SceneSelectionPass","=","=","=","=","=","=","=","=","=","=","0","Standard","0","True","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":7,"pos":[875,2100],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","3","New Amplify Shader","800ea5b38ca15d39b1bbf07d5e13e223","True","ScenePickingPass","0","7","ScenePickingPass","0","False","True","0","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","True","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","False","True","False","True","False","False","False","False","False","False","False","False","False","False","True","1","False","","False","False","False","True","1","LightMode=Picking","False","False","0","","104","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","RenderType=Opaque","Queue=Geometry","DisableBatching=False","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","LightMode=Picking","=","=","=","=","=","=","=","=","=","=","0","Standard","0","True","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":1,"pos":[725,0],"params":["Float","False","True","-1","3","AmplifyShaderEditor.MaterialInspector","0","18","Epic Replacements/p0/Reflective/Bumped Specular","800ea5b38ca15d39b1bbf07d5e13e223","True","ForwardBase","0","1","ForwardBase","17","False","True","0","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","True","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","True","1","1","False","","0","False","","1","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","False","True","False","True","False","False","False","False","False","False","False","False","True","True","0","True","_StencilType","255","False","","3","False","","7","False","","3","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","True","False","False","False","False","True","1","LightMode=ForwardBase","False","False","0","","3","=","=","=","0","Standard","45","Category","0","0","  Instanced Terrain Normals","1","0","Workflow","0","639281168633805685","Surface","0","0","  Blend","0","0","  Dither Shadows","1","0","Two Sided","1","0","Alpha Clipping","0","0","  Use Shadow Threshold","0","0","Deferred Pass","1","0","Normal Space","0","0","Transmission","0","0","  Transmission Shadow","0.5,False,","0","Translucency","0","0","  Translucency Strength","1,False,","0","  Normal Distortion","0.5,False,","0","  Scattering","2,False,","0","  Direct","0.9,False,","0","  Ambient","0.1,False,","0","  Shadow","0.5,False,","0","Cast Shadows","1","0","Receive Shadows","1","0","Receive Specular","2","0","Receive Reflections","2","0","GPU Instancing","1","0","LOD CrossFade","1","0","Built-in Fog","1","0","Ambient Light","1","0","Meta Pass","1","0","Add Pass","1","0","Override Baked GI","0","0","Write Depth","0","0","  Conservative","0","0","Extra Pre Pass","0","0","Tessellation","0","0","  Phong","0","0","  Strength","0.5,False,","0","  Type","0","0","  Tess","16,False,","0","  Min","10,False,","0","  Max","25,False,","0","  Edge Length","16,False,","0","  Max Displacement","25,False,","0","Disable Batching","0","0","Vertex Position","1","0","0","8","False","True","True","True","True","True","True","True","False","","True","0"]}
+{"wire":[801,0,802,0]}
+{"wire":[803,0,804,0]}
+{"wire":[806,0,803,5]}
+{"wire":[806,1,805,5]}
+{"wire":[807,0,803,4]}
+{"wire":[807,1,805,4]}
+{"wire":[809,0,808,0]}
+{"wire":[811,0,810,0]}
+{"wire":[811,1,809,0]}
+{"wire":[812,0,806,0]}
+{"wire":[812,1,811,0]}
+{"wire":[814,0,813,5]}
+{"wire":[814,1,803,4]}
+{"wire":[816,0,814,0]}
+{"wire":[816,1,815,0]}
+{"wire":[818,0,817,0]}
+{"wire":[818,1,809,0]}
+{"wire":[819,0,816,0]}
+{"wire":[819,1,818,0]}
+{"wire":[823,0,812,0]}
+{"wire":[823,1,821,0]}
+{"wire":[823,2,822,0]}
+{"wire":[1,0,823,0]}
+{"wire":[1,1,801,0]}
+{"wire":[1,3,819,0]}
+{"wire":[1,5,820,0]}
 ASEEND*/
-//CHKSM=4A0EDF7F888FFDAFCCFB4C7E5378B492106BF34A
+//CHKSM=9BF7D2035AC4DDBE7715D6F1C7B1F382D74C4572

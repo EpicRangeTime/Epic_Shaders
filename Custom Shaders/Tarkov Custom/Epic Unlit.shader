@@ -4,7 +4,7 @@ Shader "Tarkov Custom/Epic_Unlit_Icon"
 {
 	Properties
 	{
-		[Enum(Static,0,Character,1,Hands,2)] _StencilTypes( "Stencil Types", Float ) = 0
+		[Enum(Static,0,Character,1,Hands,2)] _StencilType( "Stencil Types", Float ) = 0
 		_ColorAdjustment( "Color Adjustment", Color ) = ( 1, 1, 1 )
 		_BaseColor( "Base Color", 2D ) = "white" {}
 		[HideInInspector] _texcoord( "", 2D ) = "white" {}
@@ -21,15 +21,7 @@ Shader "Tarkov Custom/Epic_Unlit_Icon"
 
 	LOD 0
 
-		Stencil
-		{
-			Ref [_StencilTypes]
-			WriteMask 3
-			Comp Always
-			Pass Replace
-			Fail Keep
-			ZFail Keep
-		}
+		
 
 		Blend Off
 		AlphaToMask Off
@@ -59,6 +51,7 @@ Shader "Tarkov Custom/Epic_Unlit_Icon"
 		Pass
 		{
 			Name "Unlit"
+			Stencil { Ref [_StencilType] WriteMask 3 Comp Always Pass Replace Fail Keep ZFail Keep }
 			Tags { "LightMode"="ForwardBase" }
 
 			CGPROGRAM
@@ -88,7 +81,7 @@ Shader "Tarkov Custom/Epic_Unlit_Icon"
 					UNITY_VERTEX_OUTPUT_STEREO
 				};
 
-				uniform float _StencilTypes;
+				uniform float _StencilType;
 				uniform float3 _ColorAdjustment;
 				uniform sampler2D _BaseColor;
 				uniform float4 _BaseColor_ST;
@@ -219,7 +212,7 @@ Shader "Tarkov Custom/Epic_Unlit_Icon"
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _StencilTypes;
+				uniform float _StencilType;
 
 
 				
@@ -306,13 +299,12 @@ Version=19907
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;5;-320,0;Inherit;False;2;2;0;FLOAT3;0,0,0;False;1;COLOR;0,0,0,0;False;1;COLOR;0
 Node;AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;2;-896,16;Inherit;True;Property;_TextureSample0;Texture Sample 0;0;0;Create;True;0;0;0;False;0;False;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;False;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
 Node;AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;3;-1200,16;Inherit;True;Property;_BaseColor;Base Color;2;0;Create;True;0;0;0;False;0;False;None;None;False;white;Auto;Texture2D;False;-1;0;2;SAMPLER2D;0;SAMPLERSTATE;1
-Node;AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;6;-1200,-304;Inherit;False;Property;_StencilTypes;Stencil Types;0;1;[Enum];Create;True;0;3;Static;0;Character;1;Hands;2;0;True;0;False;0;0;0;0;0;1;FLOAT;0
 Node;AmplifyShaderEditor.ColorNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;4;-832,-176;Inherit;False;Property;_ColorAdjustment;Color Adjustment;1;0;Create;True;0;0;0;False;0;False;1,1,1,0;0,0,0,0;True;False;0;6;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;0;0,0;Float;False;True;-1;3;AmplifyShaderEditor.MaterialInspector;0;10;Tarkov Custom/Epic_Unlit_Icon;0770190933193b94aaa3065e307002fa;True;Unlit;0;0;Unlit;7;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;True;True;True;0;True;_StencilTypes;255;False;;3;False;;7;False;;3;False;;1;False;;1;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;False;;True;1;RenderType=Opaque=RenderType;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=ForwardBase;False;False;0;;0;0;Standard;5;Alpha Clipping;0;0;  Use Shadow Threshold;0;0;Cast Shadows;1;0;Write Depth;0;0;Vertex Position;1;0;0;2;True;True;False;;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;1;0,0;Float;False;False;-1;3;AmplifyShaderEditor.MaterialInspector;0;1;New Amplify Shader;0770190933193b94aaa3065e307002fa;True;ShadowCaster;0;1;ShadowCaster;0;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;False;;True;1;RenderType=Opaque=RenderType;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;False;True;1;LightMode=ShadowCaster;False;False;0;;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;0;0,0;Float;False;True;-1;3;AmplifyShaderEditor.MaterialInspector;0;10;Tarkov Custom/Epic_Unlit_Icon;b009e9e7d4075eb0a3d812ddc4ed171d;True;Unlit;0;0;Unlit;7;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;True;True;False;0;False;;255;False;;3;False;;7;False;;3;False;;1;False;;1;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;False;;True;1;RenderType=Opaque=RenderType;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=ForwardBase;False;False;0;;0;0;Standard;5;Alpha Clipping;0;0;  Use Shadow Threshold;0;0;Cast Shadows;1;0;Write Depth;0;0;Vertex Position;1;0;0;2;True;True;False;;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null;1;0,0;Float;False;False;-1;3;AmplifyShaderEditor.MaterialInspector;0;1;New Amplify Shader;b009e9e7d4075eb0a3d812ddc4ed171d;True;ShadowCaster;0;1;ShadowCaster;0;False;True;0;1;False;;0;False;;0;1;False;;0;False;;True;0;False;;0;False;;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;False;;True;1;RenderType=Opaque=RenderType;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;False;True;1;LightMode=ShadowCaster;False;False;0;;0;0;Standard;0;False;0
 WireConnection;5;0;4;0
 WireConnection;5;1;2;0
 WireConnection;2;0;3;0
 WireConnection;0;0;5;0
 ASEEND*/
-//CHKSM=7E471D7AB414F2D20B3B57B1659A7F5423D214FF
+//CHKSM=A59E141185964DEB9461AE67BC1C5150092DB31E

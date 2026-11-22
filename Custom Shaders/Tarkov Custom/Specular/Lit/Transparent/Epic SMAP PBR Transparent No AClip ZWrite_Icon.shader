@@ -13,23 +13,31 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 		_SpecMap( "AO (R) Gloss (G) Opacity (A)", 2D ) = "gray" {}
 		_OpacityMult( "Opacity Mult", Range( 0, 5 ) ) = 1
 		_Smoothness( "Smoothness", Range( 0, 10 ) ) = 1
+		_SpecularBaseStrength( "Heat Glow Base Strength", Float ) = 2
 		[Normal] _BumpMap1( "Normal Map", 2D ) = "bump" {}
 		_NormalIntensity( "Normal Intensity", Float ) = 1
+		_SpecularAngularBoost( "Heat Glow Angular Boost", Float ) = 0
 		_TransparentObjectShadowStrength( "Transparent Object Shadow Strength", Range( 0, 1 ) ) = 0.5
-		[Header(Rain Settings)][Space(10)] _DropsSpec( "Drops Spec", Float ) = 128
-		_RippleTexScale( "Ripple Texture Scale", Float ) = 4
-		_RippleFakeLightIntensityOffset( "Fake Ripple Light Offset", Float ) = 0.7
-		_NightRippleFakeLightOffset( "Fake Night Ripple Light Offset", Float ) = 0.2
-		_NdotLOffset( "Normal Dot Light Offset", Float ) = 0.4
-		[Toggle] _USERAIN( "Material Effected By Rain", Float ) = 0
-		[Header(Heat Settings)][Toggle][Space(10)] USEHEAT( "Use Metal Heat Glow", Float ) = 0
-		_HeatVisible( "Heat Visibility (0-1)", Float ) = 1
-		_Temperature( "Temperature Settings", Vector ) = ( 0.1, 0.2, 0.28, 0 )
-		[HDR] _HeatColor1( "Heat Color 1", Color ) = ( 1, 0, 0, 1 )
-		[HDR] _HeatColor2( "Heat Color 2", Color ) = ( 1, 0.34, 0, 1 )
-		_HeatCenter( "Heat Center", Vector ) = ( 0, 0, 0, 1 )
-		_HeatSize( "Heat Size", Vector ) = ( 0.02, 0.04, 0.02, 1 )
-		_HeatTemp( "Heat Temperature", Float ) = 0
+		[Toggle] _RainEffectsMaterial( "Enable Rain on This Material", Float ) = 1
+		_DropletOpacityBoost( "Droplet Opacity Boost", Range( 0, 1 ) ) = 0.15
+		[HideInInspector][Space(10)] _DropsSpec( "Drops Spec", Float ) = 128
+		[HideInInspector] _RippleTexScale( "Ripple Texture Scale", Float ) = 4
+		[HideInInspector] _SkinnedMeshMaterial( "Skinned Mesh Material", Float ) = 0
+		_RippleFakeLightIntensityOffset( "Rain Highlight Mask Threshold", Float ) = 0.7
+		_NdotLOffset( "Rain Highlight Surface Facing Bias", Float ) = 0.4
+		_NightRippleFakeLightOffset( "Rain Highlight Sun Height Fade Offset", Float ) = 0.2
+		_Temperature( "Thermal Settings (Min, Max, Base Influence, Add)", Vector ) = ( 0.1, 0.2, 0.28, 0 )
+		[HideInInspector] _LocalRain( "_LocalRain", Vector ) = ( 0, 0, 0, 0 )
+		[HideInInspector] _LocalRainAverage( "_LocalRainAverage", Vector ) = ( 0, 0, 0, 0 )
+		[Toggle( USEHEAT )] USEHEAT( "Enable Localized Heat Glow", Float ) = 0
+		[HDR] _HeatColor1( "Heat Glow Color - Lower Heat", Color ) = ( 1, 0, 0, 1 )
+		[HDR] _HeatColor2( "Heat Glow Color - Higher Heat", Color ) = ( 1, 0.34, 0, 1 )
+		[HideInInspector] _HeatTemp( "Heat Temperature (Celsius - Game Driven)", Float ) = 0
+		[HideInInspector] _HeatCenter( "Heat Region Center (Local XYZ)", Vector ) = ( 0, 0, 0, 1 )
+		[HideInInspector] _HeatSize( "Heat Region Size (Local XYZ)", Vector ) = ( 0.02, 0.04, 0.02, 1 )
+		[HideInInspector] _HeatThermalFactor( "Game Thermal Brightness Multiplier", Float ) = 1
+		[HideInInspector] _HeatVisible( "Visible Heat Glow Strength", Float ) = 1
+		[HideInInspector] _HeatVisibleFactor( "Game Heat Glow Multiplier", Float ) = 1
 
 
 		//_TransmissionShadow( "Transmission Shadow", Range( 0, 1 ) ) = 0.5
@@ -73,15 +81,7 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 		BlendOp Add, Add
 		Offset 0 , 0
 
-		Stencil
-		{
-			Ref [_StencilType]
-			WriteMask 3
-			Comp Always
-			Pass Replace
-			Fail Keep
-			ZFail Keep
-		}
+		
 
 		Blend Off
 		
@@ -207,6 +207,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 		{
 			
 			Name "ForwardBase"
+			
+			Stencil { Ref [_StencilType] WriteMask 3 Comp Always Pass Replace Fail Keep ZFail Keep }
 			Tags { "LightMode"="ForwardBase" }
 
 			Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
@@ -255,8 +257,22 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 
 				#include "UnityStandardUtils.cginc"
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_FRAG_NORMAL
 				#define ASE_NEEDS_FRAG_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_FRAG_POSITION
+				#define ASE_NEEDS_WORLD_POSITION
+				#define ASE_NEEDS_FRAG_WORLD_POSITION
+				#define ASE_NEEDS_WORLD_TANGENT
+				#define ASE_NEEDS_FRAG_WORLD_TANGENT
+				#define ASE_NEEDS_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_BITANGENT
+				#pragma multi_compile _ Rain
 				#pragma shader_feature_local _USECOLORCORRECTION1_ON
+				#pragma multi_compile _ USERAIN
+				#pragma multi_compile _ TRIPLANAR
+				#pragma multi_compile _ USEHEAT
+				#pragma multi_compile _ FAKERIPPLELIGHT
 
 
 				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
@@ -288,6 +304,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					half4 ambientOrLightmapUV : TEXCOORD3;
 					UNITY_LIGHTING_COORDS( 4, 5 )
 					float4 ase_texcoord6 : TEXCOORD6;
+					float3 ase_normal : NORMAL;
+					float4 ase_texcoord7 : TEXCOORD7;
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 					UNITY_VERTEX_OUTPUT_STEREO
 				};
@@ -312,34 +330,52 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
 				uniform float _StencilType;
 				uniform float _TransparentObjectShadowStrength;
+				uniform float _DropsSpec;
 				uniform sampler2D _MainTex;
 				uniform float4 _MainTex_ST;
 				uniform float3 _Color;
+				uniform float _RainEffectsMaterial;
+				uniform float _RainIntensity;
+				uniform float _RainIntensityRippleScale;
+				uniform float3 _LocalRainAverage;
+				uniform float3 _LocalRain;
+				uniform float _SkinnedMeshMaterial;
+				uniform sampler2D _RippleTexture;
+				uniform float _RippleTexScale;
+				uniform float3 _EnvironmentRippleCycle;
+				uniform float _WetDropAlbedo;
+				uniform float4 _Temperature;
 				uniform sampler2D _BumpMap1;
 				uniform float4 _BumpMap1_ST;
 				uniform float _NormalIntensity;
+				uniform float _WetDropNormal;
+				uniform float4 _HeatColor1;
+				uniform float4 _HeatColor2;
+				uniform float4 _HeatCenter;
+				uniform float4 _HeatSize;
+				uniform float _HeatTemp;
+				uniform float _HeatVisibleFactor;
+				uniform float _SpecularAngularBoost;
+				uniform float _SpecularBaseStrength;
+				uniform float _HeatThermalFactor;
+				uniform float _ThermalVisionOn;
 				uniform float _SpecularColorIntensity;
 				uniform float _Glossness;
+				uniform float _WetDropGlossness;
 				uniform sampler2D _SpecMap;
 				uniform float4 _SpecMap_ST;
 				uniform float _Smoothness;
+				uniform float _WetDropSpecular;
+				uniform float _HeatVisible;
+				uniform float4 _SunDirection;
+				uniform float _NdotLOffset;
+				uniform float _RippleFakeLightIntensityOffset;
+				uniform float _NightRippleFakeLightOffset;
+				uniform float _RippleFakeLightIntensity;
 				uniform float _OpacityMult;
+				uniform float _DropletOpacityBoost;
 
 
 				
@@ -352,6 +388,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
 					o.ase_texcoord6.xy = v.texcoord.xyzw.xy;
+					o.ase_normal = v.normal;
+					o.ase_texcoord7 = v.vertex;
 					
 					//setting value to unused interpolator channels and avoid initialization warnings
 					o.ase_texcoord6.zw = 0;
@@ -549,33 +587,288 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					#endif
 
 					float2 uv_MainTex = IN.ase_texcoord6.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-					float4 tex2DNode126 = tex2D( _MainTex, uv_MainTex );
+					float4 tex2DNode526 = tex2D( _MainTex, uv_MainTex );
 					float3 staticSwitch111 = ( float3 )0;
 					#ifdef _USECOLORCORRECTION1_ON
 					{
-						staticSwitch111 = ( _Color * tex2DNode126.rgb );
+						staticSwitch111 = ( _Color * tex2DNode526.rgb );
 					}
 					#else
 					{
-						staticSwitch111 = tex2DNode126.rgb;
+						staticSwitch111 = tex2DNode526.rgb;
 					}
 					#endif
-					
+					float dotResult230 = dot( IN.ase_normal , _LocalRainAverage );
+					float dotResult227 = dot( IN.ase_normal , _LocalRain );
+					float4 tex2DNode25_g10 = tex2D( _RippleTexture, ( uv_MainTex / _RippleTexScale ) );
+					float temp_output_34_0_g10 = ( tex2DNode25_g10.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g10.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_183_13 = temp_output_34_0_g10;
+					float3 break196 = max( ( abs( IN.ase_normal ) - 0.49 ), 0.0 );
+					float temp_output_197_0 = ( break196.x + break196.y + break196.z );
+					float temp_output_198_0 = ( break196.x / temp_output_197_0 );
+					float3 break202 = ( IN.ase_texcoord7.xyz * _RippleTexScale );
+					float2 appendResult203 = (float2(break202.y , break202.z));
+					float4 tex2DNode25_g9 = tex2D( _RippleTexture, appendResult203 );
+					float temp_output_34_0_g9 = ( tex2DNode25_g9.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g9.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_199_0 = ( break196.y / temp_output_197_0 );
+					float2 appendResult205 = (float2(break202.z , break202.x));
+					float4 tex2DNode25_g8 = tex2D( _RippleTexture, appendResult205 );
+					float temp_output_34_0_g8 = ( tex2DNode25_g8.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g8.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_200_0 = ( break196.z / temp_output_197_0 );
+					float2 appendResult207 = (float2(break202.x , break202.y));
+					float4 tex2DNode25_g7 = tex2D( _RippleTexture, appendResult207 );
+					float temp_output_34_0_g7 = ( tex2DNode25_g7.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g7.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float staticSwitch219 = ( float )0;
+					#ifdef TRIPLANAR
+					{
+						staticSwitch219 = ( ( temp_output_198_0 * temp_output_34_0_g9 ) + ( temp_output_199_0 * temp_output_34_0_g8 ) + ( temp_output_200_0 * temp_output_34_0_g7 ) );
+					}
+					#else
+					{
+						staticSwitch219 = temp_output_183_13;
+					}
+					#endif
+					float ifLocalVar221 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					ifLocalVar221 = staticSwitch219;
+					else
+					ifLocalVar221 = temp_output_183_13;
+					float ifLocalVar243 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					{
+						ifLocalVar243 = ifLocalVar221;
+					}
+					else
+					{
+						ifLocalVar243 = ( 0.35 * ifLocalVar221 );
+					}
+					float temp_output_278_0 = ( _RainEffectsMaterial * ( ( saturate( ( _RainIntensity * _RainIntensityRippleScale ) ) * saturate( ( max( dotResult230, 0.0 ) + max( dotResult227, 0.0 ) ) ) ) * ifLocalVar243 ) );
+					float3 staticSwitch268 = ( float3 )0;
+					#ifdef USERAIN
+					{
+						float3 color261 = IsGammaSpace() ? float3( 0, 0, 0 ) : float3( 0, 0, 0 );
+						float3 lerpResult262 = lerp( staticSwitch111 , color261 , ( temp_output_278_0 * _WetDropAlbedo ));
+						staticSwitch268 = lerpResult262;
+					}
+					#else
+					{
+						staticSwitch268 = staticSwitch111;
+					}
+					#endif
+					#ifdef Rain
+					float3 staticSwitch269 = staticSwitch268;
+					#else
+					float3 staticSwitch269 = staticSwitch111;
+					#endif
+					float3 Surface_Albedo284 = staticSwitch269;
+					float3 temp_cast_0 = (0.0).xxx;
 					float2 uv_BumpMap1 = IN.ase_texcoord6.xy * _BumpMap1_ST.xy + _BumpMap1_ST.zw;
+					float3 tex2DNode125 = UnpackScaleNormal( tex2D( _BumpMap1, uv_BumpMap1 ), _NormalIntensity );
+					float2 appendResult16_g10 = (float2(tex2DNode25_g10.g , tex2DNode25_g10.b));
+					float2 temp_output_183_0 = ( ( ( appendResult16_g10 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g10 - 0.5 ) ) );
+					float2 appendResult16_g9 = (float2(tex2DNode25_g9.g , tex2DNode25_g9.b));
+					float2 appendResult16_g8 = (float2(tex2DNode25_g8.g , tex2DNode25_g8.b));
+					float2 appendResult16_g7 = (float2(tex2DNode25_g7.g , tex2DNode25_g7.b));
+					float2 staticSwitch220 = ( float2 )0;
+					#ifdef TRIPLANAR
+					{
+						staticSwitch220 = ( ( temp_output_198_0 * ( ( ( appendResult16_g9 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g9 - 0.5 ) ) ) ) + ( temp_output_199_0 * ( ( ( appendResult16_g8 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g8 - 0.5 ) ) ) ) + ( temp_output_200_0 * ( ( ( appendResult16_g7 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g7 - 0.5 ) ) ) ) );
+					}
+					#else
+					{
+						staticSwitch220 = temp_output_183_0;
+					}
+					#endif
+					float3 staticSwitch271 = ( float3 )0;
+					#ifdef USERAIN
+					{
+						float2 ifLocalVar223 = 0;
+						if( _SkinnedMeshMaterial <= 0.0 )
+						ifLocalVar223 = staticSwitch220;
+						else
+						ifLocalVar223 = temp_output_183_0;
+						float3 appendResult249 = (float3(( 7.0 * ifLocalVar223 ) , 1.0));
+						float3 normalizeResult251 = normalize( appendResult249 );
+						float3 lerpResult264 = lerp( tex2DNode125 , normalizeResult251 , ( _WetDropNormal * temp_output_278_0 ));
+						staticSwitch271 = lerpResult264;
+					}
+					#else
+					{
+						staticSwitch271 = tex2DNode125;
+					}
+					#endif
+					#ifdef Rain
+					float3 staticSwitch270 = staticSwitch271;
+					#else
+					float3 staticSwitch270 = tex2DNode125;
+					#endif
+					float3 staticSwitch283 = ( float3 )0;
+					#ifdef USEHEAT
+					{
+						float4 break289 = _HeatCenter;
+						float3 appendResult291 = (float3(break289.x , break289.y , break289.z));
+						float4 break290 = _HeatSize;
+						float3 appendResult292 = (float3(break290.x , break290.y , break290.z));
+						float temp_output_22_0_g293 = max( ( ( _HeatTemp - 30.0 ) * 0.1 ), 0.0 );
+						float temp_output_24_0_g293 = ( max( ( 1.0 - length( ( ( IN.ase_texcoord7.xyz - appendResult291 ) / max( abs( appendResult292 ), 0.0001 ) ) ) ), 0.0 ) * ( temp_output_22_0_g293 * temp_output_22_0_g293 ) );
+						float3 lerpResult25_g293 = lerp( _HeatColor1.rgb , _HeatColor2.rgb , temp_output_24_0_g293);
+						float3 tanToWorld0 = float3( TangentWS.x, BitangentWS.x, NormalWS.x );
+						float3 tanToWorld1 = float3( TangentWS.y, BitangentWS.y, NormalWS.y );
+						float3 tanToWorld2 = float3( TangentWS.z, BitangentWS.z, NormalWS.z );
+						float3 ase_viewVectorTS =  tanToWorld0 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).x + tanToWorld1 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).y  + tanToWorld2 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).z;
+						float3 ase_viewDirTS = normalize( ase_viewVectorTS );
+						float3 normalizeResult132 = normalize( ase_viewDirTS );
+						float dotResult130 = dot( staticSwitch270 , normalizeResult132 );
+						float temp_output_133_0 = ( 1.0 - dotResult130 );
+						float Angle_Ref137 = ( ( temp_output_133_0 * temp_output_133_0 ) * 0.5 );
+						float Specular_Angle_Response287 = ( ( ( Angle_Ref137 * _SpecularAngularBoost ) + _SpecularBaseStrength ) * 0.5 );
+						staticSwitch283 = ( ( ( lerpResult25_g293 * temp_output_24_0_g293 ) * _HeatVisibleFactor ) * Specular_Angle_Response287 );
+					}
+					#else
+					{
+						staticSwitch283 = temp_cast_0;
+					}
+					#endif
+					float3 Localized_Heat_Radiance297 = staticSwitch283;
+					float3 staticSwitch308 = ( float3 )0;
+					#ifdef USEHEAT
+					{
+						staticSwitch308 = ( Surface_Albedo284 + ( Localized_Heat_Radiance297 * 10.0 ) );
+					}
+					#else
+					{
+						staticSwitch308 = ( Surface_Albedo284 * _Temperature.z );
+					}
+					#endif
+					float4 break4_g309 = _Temperature;
+					float ifLocalVar311 = 0;
+					if( _ThermalVisionOn <= 0.0 )
+					{
+						ifLocalVar311 = 0.0;
+					}
+					else
+					{
+						ifLocalVar311 = 1.0;
+					}
+					float3 lerpResult312 = lerp( Surface_Albedo284 , ( min( max( staticSwitch308, ( break4_g309.x * _HeatThermalFactor ) ), break4_g309.y ) + break4_g309.w ) , ifLocalVar311);
 					
-					float3 temp_cast_0 = (tex2DNode126.a).xxx;
-					float3 lerpResult114 = lerp( temp_cast_0 , ( tex2DNode126.rgb * tex2DNode126.a ) , _SpecularColorIntensity);
+					float3 Surface_Normal285 = staticSwitch270;
+					
+					float3 temp_cast_1 = (tex2DNode526.a).xxx;
+					float3 lerpResult114 = lerp( temp_cast_1 , ( tex2DNode526.rgb * tex2DNode526.a ) , _SpecularColorIntensity);
+					float3 temp_output_116_0 = ( lerpResult114 * _Glossness );
+					float3 staticSwitch274 = ( float3 )0;
+					#ifdef USERAIN
+					{
+						float3 color266 = IsGammaSpace() ? float3( 1, 1, 1 ) : float3( 1, 1, 1 );
+						float3 lerpResult265 = lerp( temp_output_116_0 , color266 , ( _WetDropGlossness * temp_output_278_0 ));
+						staticSwitch274 = lerpResult265;
+					}
+					#else
+					{
+						staticSwitch274 = temp_output_116_0;
+					}
+					#endif
+					#ifdef Rain
+					float3 staticSwitch275 = staticSwitch274;
+					#else
+					float3 staticSwitch275 = temp_output_116_0;
+					#endif
 					
 					float2 uv_SpecMap = IN.ase_texcoord6.xy * _SpecMap_ST.xy + _SpecMap_ST.zw;
 					float4 tex2DNode128 = tex2D( _SpecMap, uv_SpecMap );
+					float temp_output_113_0 = ( tex2DNode128.g * _Smoothness );
+					float staticSwitch272 = ( float )0;
+					#ifdef USERAIN
+					{
+						float lerpResult263 = lerp( temp_output_113_0 , 1.0 , ( _WetDropSpecular * temp_output_278_0 ));
+						staticSwitch272 = lerpResult263;
+					}
+					#else
+					{
+						staticSwitch272 = temp_output_113_0;
+					}
+					#endif
+					#ifdef Rain
+					float staticSwitch273 = staticSwitch272;
+					#else
+					float staticSwitch273 = temp_output_113_0;
+					#endif
+					
+					float3 Visible_Heat_Emission300 = ( Localized_Heat_Radiance297 * _HeatVisible );
+					float staticSwitch319 = ( float )0;
+					#ifdef USERAIN
+					{
+						float staticSwitch318 = ( float )0;
+						#ifdef FAKERIPPLELIGHT
+						{
+							float3 tanToWorld0 = float3( TangentWS.x, BitangentWS.x, NormalWS.x );
+							float3 tanToWorld1 = float3( TangentWS.y, BitangentWS.y, NormalWS.y );
+							float3 tanToWorld2 = float3( TangentWS.z, BitangentWS.z, NormalWS.z );
+							float3 tanNormal314 = Surface_Normal285;
+							float3 worldNormal314 = float3( dot( tanToWorld0, tanNormal314 ), dot( tanToWorld1, tanNormal314 ), dot( tanToWorld2, tanNormal314 ) );
+							float3 temp_output_4_0_g316 = _SunDirection.xyz;
+							float3 temp_output_14_0_g316 = ( temp_output_4_0_g316 * -1.0 );
+							float dotResult18_g316 = dot( worldNormal314 , ( temp_output_14_0_g316 / max( length( temp_output_14_0_g316 ), 0.0001 ) ) );
+							float Material_Drop_Mask286 = ifLocalVar243;
+							float3 break27_g316 = Surface_Normal285;
+							float2 appendResult28_g316 = (float2(break27_g316.x , break27_g316.y));
+							float ifLocalVar30_g316 = 0;
+							if( length( appendResult28_g316 ) <= 0.32 )
+							ifLocalVar30_g316 = 0.0;
+							else
+							ifLocalVar30_g316 = 1.0;
+							float ifLocalVar31_g316 = 0;
+							if( break27_g316.x <= 0.0 )
+							ifLocalVar31_g316 = 0.0;
+							else
+							ifLocalVar31_g316 = 1.0;
+							staticSwitch318 = ( ( ( ( ( saturate( ( max( dotResult18_g316, 0.0 ) + _NdotLOffset ) ) * ceil( ( Material_Drop_Mask286 - _RippleFakeLightIntensityOffset ) ) ) * saturate( ( _NightRippleFakeLightOffset - temp_output_4_0_g316.y ) ) ) * ( ifLocalVar30_g316 * ifLocalVar31_g316 ) ) * _RippleFakeLightIntensity ) * _RainEffectsMaterial );
+						}
+						#else
+						{
+							staticSwitch318 = 0.0;
+						}
+						#endif
+						staticSwitch319 = staticSwitch318;
+					}
+					#else
+					{
+						staticSwitch319 = 0.0;
+					}
+					#endif
+					#ifdef Rain
+					float staticSwitch320 = staticSwitch319;
+					#else
+					float staticSwitch320 = 0.0;
+					#endif
+					float Rain_Highlight_Emission321 = staticSwitch320;
+					
+					float temp_output_530_0 = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					#ifdef USERAIN
+					float staticSwitch602 = temp_output_278_0;
+					#else
+					float staticSwitch602 = 0.0;
+					#endif
+					#ifdef Rain
+					float staticSwitch603 = staticSwitch602;
+					#else
+					float staticSwitch603 = 0.0;
+					#endif
+					float ifLocalVar606 = 0;
+					if( temp_output_530_0 > 0.0 )
+					{
+						ifLocalVar606 = saturate( ( staticSwitch603 * _DropletOpacityBoost ) );
+					}
+					float lerpResult607 = lerp( temp_output_530_0 , 1.0 , ifLocalVar606);
 					
 
-					o.Albedo = staticSwitch111;
-					o.Normal = UnpackScaleNormal( tex2D( _BumpMap1, uv_BumpMap1 ), _NormalIntensity );
+					o.Albedo = lerpResult312;
+					o.Normal = Surface_Normal285;
 
-					half3 Specular = saturate( ( lerpResult114 * _Glossness ) );
+					half3 Specular = saturate( staticSwitch275 );
 					half Metallic = 0;
-					half Smoothness = ( tex2DNode128.g * _Smoothness );
+					half Smoothness = staticSwitch273;
 					half Occlusion = tex2DNode128.r;
 
 					#if defined(ASE_LIGHTING_SIMPLE)
@@ -591,8 +884,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 						o.Smoothness = Smoothness;
 					#endif
 
-					o.Emission = half3( 0, 0, 0 );
-					o.Alpha = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					o.Emission = ( Visible_Heat_Emission300 + Rain_Highlight_Emission321 );
+					o.Alpha = lerpResult607;
 					half AlphaClipThreshold = 0.5;
 					half AlphaClipThresholdShadow = 0.5;
 					half3 BakedGI = 0;
@@ -759,6 +1052,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 		{
 			
 			Name "ForwardAdd"
+			
+			Stencil { Ref [_StencilType] WriteMask 3 Comp Always Pass Replace Fail Keep ZFail Keep }
 			Tags { "LightMode"="ForwardAdd" }
 			ZWrite Off
 			Blend SrcAlpha One
@@ -807,8 +1102,21 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 
 				#include "UnityStandardUtils.cginc"
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_FRAG_NORMAL
 				#define ASE_NEEDS_FRAG_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_FRAG_POSITION
+				#define ASE_NEEDS_WORLD_POSITION
+				#define ASE_NEEDS_FRAG_WORLD_POSITION
+				#define ASE_NEEDS_FRAG_WORLD_TANGENT
+				#define ASE_NEEDS_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_NORMAL
+				#define ASE_NEEDS_FRAG_WORLD_BITANGENT
+				#pragma multi_compile _ Rain
 				#pragma shader_feature_local _USECOLORCORRECTION1_ON
+				#pragma multi_compile _ USERAIN
+				#pragma multi_compile _ TRIPLANAR
+				#pragma multi_compile _ USEHEAT
+				#pragma multi_compile _ FAKERIPPLELIGHT
 
 
 				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
@@ -839,6 +1147,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					float4 tangentWS : TEXCOORD2; // holds terrainUV ifdef ENABLE_TERRAIN_PERPIXEL_NORMAL
 					UNITY_LIGHTING_COORDS( 3, 4 )
 					float4 ase_texcoord5 : TEXCOORD5;
+					float3 ase_normal : NORMAL;
+					float4 ase_texcoord6 : TEXCOORD6;
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 					UNITY_VERTEX_OUTPUT_STEREO
 				};
@@ -863,34 +1173,52 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
 				uniform float _StencilType;
 				uniform float _TransparentObjectShadowStrength;
+				uniform float _DropsSpec;
 				uniform sampler2D _MainTex;
 				uniform float4 _MainTex_ST;
 				uniform float3 _Color;
+				uniform float _RainEffectsMaterial;
+				uniform float _RainIntensity;
+				uniform float _RainIntensityRippleScale;
+				uniform float3 _LocalRainAverage;
+				uniform float3 _LocalRain;
+				uniform float _SkinnedMeshMaterial;
+				uniform sampler2D _RippleTexture;
+				uniform float _RippleTexScale;
+				uniform float3 _EnvironmentRippleCycle;
+				uniform float _WetDropAlbedo;
+				uniform float4 _Temperature;
 				uniform sampler2D _BumpMap1;
 				uniform float4 _BumpMap1_ST;
 				uniform float _NormalIntensity;
+				uniform float _WetDropNormal;
+				uniform float4 _HeatColor1;
+				uniform float4 _HeatColor2;
+				uniform float4 _HeatCenter;
+				uniform float4 _HeatSize;
+				uniform float _HeatTemp;
+				uniform float _HeatVisibleFactor;
+				uniform float _SpecularAngularBoost;
+				uniform float _SpecularBaseStrength;
+				uniform float _HeatThermalFactor;
+				uniform float _ThermalVisionOn;
 				uniform float _SpecularColorIntensity;
 				uniform float _Glossness;
+				uniform float _WetDropGlossness;
 				uniform sampler2D _SpecMap;
 				uniform float4 _SpecMap_ST;
 				uniform float _Smoothness;
+				uniform float _WetDropSpecular;
+				uniform float _HeatVisible;
+				uniform float4 _SunDirection;
+				uniform float _NdotLOffset;
+				uniform float _RippleFakeLightIntensityOffset;
+				uniform float _NightRippleFakeLightOffset;
+				uniform float _RippleFakeLightIntensity;
 				uniform float _OpacityMult;
+				uniform float _DropletOpacityBoost;
 
 
 				
@@ -902,6 +1230,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
 					o.ase_texcoord5.xy = v.texcoord.xyzw.xy;
+					o.ase_normal = v.normal;
+					o.ase_texcoord6 = v.vertex;
 					
 					//setting value to unused interpolator channels and avoid initialization warnings
 					o.ase_texcoord5.zw = 0;
@@ -1083,33 +1413,288 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					#endif
 
 					float2 uv_MainTex = IN.ase_texcoord5.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-					float4 tex2DNode126 = tex2D( _MainTex, uv_MainTex );
+					float4 tex2DNode526 = tex2D( _MainTex, uv_MainTex );
 					float3 staticSwitch111 = ( float3 )0;
 					#ifdef _USECOLORCORRECTION1_ON
 					{
-						staticSwitch111 = ( _Color * tex2DNode126.rgb );
+						staticSwitch111 = ( _Color * tex2DNode526.rgb );
 					}
 					#else
 					{
-						staticSwitch111 = tex2DNode126.rgb;
+						staticSwitch111 = tex2DNode526.rgb;
 					}
 					#endif
-					
+					float dotResult230 = dot( IN.ase_normal , _LocalRainAverage );
+					float dotResult227 = dot( IN.ase_normal , _LocalRain );
+					float4 tex2DNode25_g10 = tex2D( _RippleTexture, ( uv_MainTex / _RippleTexScale ) );
+					float temp_output_34_0_g10 = ( tex2DNode25_g10.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g10.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_183_13 = temp_output_34_0_g10;
+					float3 break196 = max( ( abs( IN.ase_normal ) - 0.49 ), 0.0 );
+					float temp_output_197_0 = ( break196.x + break196.y + break196.z );
+					float temp_output_198_0 = ( break196.x / temp_output_197_0 );
+					float3 break202 = ( IN.ase_texcoord6.xyz * _RippleTexScale );
+					float2 appendResult203 = (float2(break202.y , break202.z));
+					float4 tex2DNode25_g9 = tex2D( _RippleTexture, appendResult203 );
+					float temp_output_34_0_g9 = ( tex2DNode25_g9.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g9.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_199_0 = ( break196.y / temp_output_197_0 );
+					float2 appendResult205 = (float2(break202.z , break202.x));
+					float4 tex2DNode25_g8 = tex2D( _RippleTexture, appendResult205 );
+					float temp_output_34_0_g8 = ( tex2DNode25_g8.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g8.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_200_0 = ( break196.z / temp_output_197_0 );
+					float2 appendResult207 = (float2(break202.x , break202.y));
+					float4 tex2DNode25_g7 = tex2D( _RippleTexture, appendResult207 );
+					float temp_output_34_0_g7 = ( tex2DNode25_g7.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g7.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float staticSwitch219 = ( float )0;
+					#ifdef TRIPLANAR
+					{
+						staticSwitch219 = ( ( temp_output_198_0 * temp_output_34_0_g9 ) + ( temp_output_199_0 * temp_output_34_0_g8 ) + ( temp_output_200_0 * temp_output_34_0_g7 ) );
+					}
+					#else
+					{
+						staticSwitch219 = temp_output_183_13;
+					}
+					#endif
+					float ifLocalVar221 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					ifLocalVar221 = staticSwitch219;
+					else
+					ifLocalVar221 = temp_output_183_13;
+					float ifLocalVar243 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					{
+						ifLocalVar243 = ifLocalVar221;
+					}
+					else
+					{
+						ifLocalVar243 = ( 0.35 * ifLocalVar221 );
+					}
+					float temp_output_278_0 = ( _RainEffectsMaterial * ( ( saturate( ( _RainIntensity * _RainIntensityRippleScale ) ) * saturate( ( max( dotResult230, 0.0 ) + max( dotResult227, 0.0 ) ) ) ) * ifLocalVar243 ) );
+					float3 staticSwitch268 = ( float3 )0;
+					#ifdef USERAIN
+					{
+						float3 color261 = IsGammaSpace() ? float3( 0, 0, 0 ) : float3( 0, 0, 0 );
+						float3 lerpResult262 = lerp( staticSwitch111 , color261 , ( temp_output_278_0 * _WetDropAlbedo ));
+						staticSwitch268 = lerpResult262;
+					}
+					#else
+					{
+						staticSwitch268 = staticSwitch111;
+					}
+					#endif
+					#ifdef Rain
+					float3 staticSwitch269 = staticSwitch268;
+					#else
+					float3 staticSwitch269 = staticSwitch111;
+					#endif
+					float3 Surface_Albedo284 = staticSwitch269;
+					float3 temp_cast_0 = (0.0).xxx;
 					float2 uv_BumpMap1 = IN.ase_texcoord5.xy * _BumpMap1_ST.xy + _BumpMap1_ST.zw;
+					float3 tex2DNode125 = UnpackScaleNormal( tex2D( _BumpMap1, uv_BumpMap1 ), _NormalIntensity );
+					float2 appendResult16_g10 = (float2(tex2DNode25_g10.g , tex2DNode25_g10.b));
+					float2 temp_output_183_0 = ( ( ( appendResult16_g10 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g10 - 0.5 ) ) );
+					float2 appendResult16_g9 = (float2(tex2DNode25_g9.g , tex2DNode25_g9.b));
+					float2 appendResult16_g8 = (float2(tex2DNode25_g8.g , tex2DNode25_g8.b));
+					float2 appendResult16_g7 = (float2(tex2DNode25_g7.g , tex2DNode25_g7.b));
+					float2 staticSwitch220 = ( float2 )0;
+					#ifdef TRIPLANAR
+					{
+						staticSwitch220 = ( ( temp_output_198_0 * ( ( ( appendResult16_g9 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g9 - 0.5 ) ) ) ) + ( temp_output_199_0 * ( ( ( appendResult16_g8 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g8 - 0.5 ) ) ) ) + ( temp_output_200_0 * ( ( ( appendResult16_g7 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g7 - 0.5 ) ) ) ) );
+					}
+					#else
+					{
+						staticSwitch220 = temp_output_183_0;
+					}
+					#endif
+					float3 staticSwitch271 = ( float3 )0;
+					#ifdef USERAIN
+					{
+						float2 ifLocalVar223 = 0;
+						if( _SkinnedMeshMaterial <= 0.0 )
+						ifLocalVar223 = staticSwitch220;
+						else
+						ifLocalVar223 = temp_output_183_0;
+						float3 appendResult249 = (float3(( 7.0 * ifLocalVar223 ) , 1.0));
+						float3 normalizeResult251 = normalize( appendResult249 );
+						float3 lerpResult264 = lerp( tex2DNode125 , normalizeResult251 , ( _WetDropNormal * temp_output_278_0 ));
+						staticSwitch271 = lerpResult264;
+					}
+					#else
+					{
+						staticSwitch271 = tex2DNode125;
+					}
+					#endif
+					#ifdef Rain
+					float3 staticSwitch270 = staticSwitch271;
+					#else
+					float3 staticSwitch270 = tex2DNode125;
+					#endif
+					float3 staticSwitch283 = ( float3 )0;
+					#ifdef USEHEAT
+					{
+						float4 break289 = _HeatCenter;
+						float3 appendResult291 = (float3(break289.x , break289.y , break289.z));
+						float4 break290 = _HeatSize;
+						float3 appendResult292 = (float3(break290.x , break290.y , break290.z));
+						float temp_output_22_0_g293 = max( ( ( _HeatTemp - 30.0 ) * 0.1 ), 0.0 );
+						float temp_output_24_0_g293 = ( max( ( 1.0 - length( ( ( IN.ase_texcoord6.xyz - appendResult291 ) / max( abs( appendResult292 ), 0.0001 ) ) ) ), 0.0 ) * ( temp_output_22_0_g293 * temp_output_22_0_g293 ) );
+						float3 lerpResult25_g293 = lerp( _HeatColor1.rgb , _HeatColor2.rgb , temp_output_24_0_g293);
+						float3 tanToWorld0 = float3( TangentWS.x, BitangentWS.x, NormalWS.x );
+						float3 tanToWorld1 = float3( TangentWS.y, BitangentWS.y, NormalWS.y );
+						float3 tanToWorld2 = float3( TangentWS.z, BitangentWS.z, NormalWS.z );
+						float3 ase_viewVectorTS =  tanToWorld0 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).x + tanToWorld1 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).y  + tanToWorld2 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - PositionWS : UNITY_MATRIX_V[ 2 ].xyz ).z;
+						float3 ase_viewDirTS = normalize( ase_viewVectorTS );
+						float3 normalizeResult132 = normalize( ase_viewDirTS );
+						float dotResult130 = dot( staticSwitch270 , normalizeResult132 );
+						float temp_output_133_0 = ( 1.0 - dotResult130 );
+						float Angle_Ref137 = ( ( temp_output_133_0 * temp_output_133_0 ) * 0.5 );
+						float Specular_Angle_Response287 = ( ( ( Angle_Ref137 * _SpecularAngularBoost ) + _SpecularBaseStrength ) * 0.5 );
+						staticSwitch283 = ( ( ( lerpResult25_g293 * temp_output_24_0_g293 ) * _HeatVisibleFactor ) * Specular_Angle_Response287 );
+					}
+					#else
+					{
+						staticSwitch283 = temp_cast_0;
+					}
+					#endif
+					float3 Localized_Heat_Radiance297 = staticSwitch283;
+					float3 staticSwitch308 = ( float3 )0;
+					#ifdef USEHEAT
+					{
+						staticSwitch308 = ( Surface_Albedo284 + ( Localized_Heat_Radiance297 * 10.0 ) );
+					}
+					#else
+					{
+						staticSwitch308 = ( Surface_Albedo284 * _Temperature.z );
+					}
+					#endif
+					float4 break4_g309 = _Temperature;
+					float ifLocalVar311 = 0;
+					if( _ThermalVisionOn <= 0.0 )
+					{
+						ifLocalVar311 = 0.0;
+					}
+					else
+					{
+						ifLocalVar311 = 1.0;
+					}
+					float3 lerpResult312 = lerp( Surface_Albedo284 , ( min( max( staticSwitch308, ( break4_g309.x * _HeatThermalFactor ) ), break4_g309.y ) + break4_g309.w ) , ifLocalVar311);
 					
-					float3 temp_cast_0 = (tex2DNode126.a).xxx;
-					float3 lerpResult114 = lerp( temp_cast_0 , ( tex2DNode126.rgb * tex2DNode126.a ) , _SpecularColorIntensity);
+					float3 Surface_Normal285 = staticSwitch270;
+					
+					float3 temp_cast_1 = (tex2DNode526.a).xxx;
+					float3 lerpResult114 = lerp( temp_cast_1 , ( tex2DNode526.rgb * tex2DNode526.a ) , _SpecularColorIntensity);
+					float3 temp_output_116_0 = ( lerpResult114 * _Glossness );
+					float3 staticSwitch274 = ( float3 )0;
+					#ifdef USERAIN
+					{
+						float3 color266 = IsGammaSpace() ? float3( 1, 1, 1 ) : float3( 1, 1, 1 );
+						float3 lerpResult265 = lerp( temp_output_116_0 , color266 , ( _WetDropGlossness * temp_output_278_0 ));
+						staticSwitch274 = lerpResult265;
+					}
+					#else
+					{
+						staticSwitch274 = temp_output_116_0;
+					}
+					#endif
+					#ifdef Rain
+					float3 staticSwitch275 = staticSwitch274;
+					#else
+					float3 staticSwitch275 = temp_output_116_0;
+					#endif
 					
 					float2 uv_SpecMap = IN.ase_texcoord5.xy * _SpecMap_ST.xy + _SpecMap_ST.zw;
 					float4 tex2DNode128 = tex2D( _SpecMap, uv_SpecMap );
+					float temp_output_113_0 = ( tex2DNode128.g * _Smoothness );
+					float staticSwitch272 = ( float )0;
+					#ifdef USERAIN
+					{
+						float lerpResult263 = lerp( temp_output_113_0 , 1.0 , ( _WetDropSpecular * temp_output_278_0 ));
+						staticSwitch272 = lerpResult263;
+					}
+					#else
+					{
+						staticSwitch272 = temp_output_113_0;
+					}
+					#endif
+					#ifdef Rain
+					float staticSwitch273 = staticSwitch272;
+					#else
+					float staticSwitch273 = temp_output_113_0;
+					#endif
+					
+					float3 Visible_Heat_Emission300 = ( Localized_Heat_Radiance297 * _HeatVisible );
+					float staticSwitch319 = ( float )0;
+					#ifdef USERAIN
+					{
+						float staticSwitch318 = ( float )0;
+						#ifdef FAKERIPPLELIGHT
+						{
+							float3 tanToWorld0 = float3( TangentWS.x, BitangentWS.x, NormalWS.x );
+							float3 tanToWorld1 = float3( TangentWS.y, BitangentWS.y, NormalWS.y );
+							float3 tanToWorld2 = float3( TangentWS.z, BitangentWS.z, NormalWS.z );
+							float3 tanNormal314 = Surface_Normal285;
+							float3 worldNormal314 = float3( dot( tanToWorld0, tanNormal314 ), dot( tanToWorld1, tanNormal314 ), dot( tanToWorld2, tanNormal314 ) );
+							float3 temp_output_4_0_g316 = _SunDirection.xyz;
+							float3 temp_output_14_0_g316 = ( temp_output_4_0_g316 * -1.0 );
+							float dotResult18_g316 = dot( worldNormal314 , ( temp_output_14_0_g316 / max( length( temp_output_14_0_g316 ), 0.0001 ) ) );
+							float Material_Drop_Mask286 = ifLocalVar243;
+							float3 break27_g316 = Surface_Normal285;
+							float2 appendResult28_g316 = (float2(break27_g316.x , break27_g316.y));
+							float ifLocalVar30_g316 = 0;
+							if( length( appendResult28_g316 ) <= 0.32 )
+							ifLocalVar30_g316 = 0.0;
+							else
+							ifLocalVar30_g316 = 1.0;
+							float ifLocalVar31_g316 = 0;
+							if( break27_g316.x <= 0.0 )
+							ifLocalVar31_g316 = 0.0;
+							else
+							ifLocalVar31_g316 = 1.0;
+							staticSwitch318 = ( ( ( ( ( saturate( ( max( dotResult18_g316, 0.0 ) + _NdotLOffset ) ) * ceil( ( Material_Drop_Mask286 - _RippleFakeLightIntensityOffset ) ) ) * saturate( ( _NightRippleFakeLightOffset - temp_output_4_0_g316.y ) ) ) * ( ifLocalVar30_g316 * ifLocalVar31_g316 ) ) * _RippleFakeLightIntensity ) * _RainEffectsMaterial );
+						}
+						#else
+						{
+							staticSwitch318 = 0.0;
+						}
+						#endif
+						staticSwitch319 = staticSwitch318;
+					}
+					#else
+					{
+						staticSwitch319 = 0.0;
+					}
+					#endif
+					#ifdef Rain
+					float staticSwitch320 = staticSwitch319;
+					#else
+					float staticSwitch320 = 0.0;
+					#endif
+					float Rain_Highlight_Emission321 = staticSwitch320;
+					
+					float temp_output_530_0 = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					#ifdef USERAIN
+					float staticSwitch602 = temp_output_278_0;
+					#else
+					float staticSwitch602 = 0.0;
+					#endif
+					#ifdef Rain
+					float staticSwitch603 = staticSwitch602;
+					#else
+					float staticSwitch603 = 0.0;
+					#endif
+					float ifLocalVar606 = 0;
+					if( temp_output_530_0 > 0.0 )
+					{
+						ifLocalVar606 = saturate( ( staticSwitch603 * _DropletOpacityBoost ) );
+					}
+					float lerpResult607 = lerp( temp_output_530_0 , 1.0 , ifLocalVar606);
 					
 
-					o.Albedo = staticSwitch111;
-					o.Normal = UnpackScaleNormal( tex2D( _BumpMap1, uv_BumpMap1 ), _NormalIntensity );
+					o.Albedo = lerpResult312;
+					o.Normal = Surface_Normal285;
 
-					half3 Specular = saturate( ( lerpResult114 * _Glossness ) );
+					half3 Specular = saturate( staticSwitch275 );
 					half Metallic = 0;
-					half Smoothness = ( tex2DNode128.g * _Smoothness );
+					half Smoothness = staticSwitch273;
 					half Occlusion = tex2DNode128.r;
 
 					#if defined(ASE_LIGHTING_SIMPLE)
@@ -1125,8 +1710,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 						o.Smoothness = Smoothness;
 					#endif
 
-					o.Emission = half3( 0, 0, 0 );
-					o.Alpha = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					o.Emission = ( Visible_Heat_Emission300 + Rain_Highlight_Emission321 );
+					o.Alpha = lerpResult607;
 					half AlphaClipThreshold = 0.5;
 					half3 Transmission = 1;
 					half3 Translucency = 1;
@@ -1279,9 +1864,19 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 				#include "UnityPBSLighting.cginc"
 				#include "UnityMetaPass.cginc"
 
+				#include "UnityStandardUtils.cginc"
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_FRAG_NORMAL
 				#define ASE_NEEDS_FRAG_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_FRAG_POSITION
+				#define ASE_NEEDS_VERT_TANGENT
+				#define ASE_NEEDS_VERT_NORMAL
+				#pragma multi_compile _ Rain
 				#pragma shader_feature_local _USECOLORCORRECTION1_ON
+				#pragma multi_compile _ USERAIN
+				#pragma multi_compile _ TRIPLANAR
+				#pragma multi_compile _ USEHEAT
+				#pragma multi_compile _ FAKERIPPLELIGHT
 
 
 				struct appdata
@@ -1304,6 +1899,20 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 						float4 lightCoord : TEXCOORD1;
 					#endif
 					float4 ase_texcoord2 : TEXCOORD2;
+					float3 ase_normal : NORMAL;
+					float4 ase_texcoord3 : TEXCOORD3;
+					#if defined( USEHEAT )
+					float4 ase_texcoord4 : TEXCOORD4;
+					#endif
+					#if ( defined( FAKERIPPLELIGHT ) && defined( USERAIN ) ) || defined( USEHEAT )
+					float4 ase_texcoord5 : TEXCOORD5;
+					#endif
+					#if ( defined( FAKERIPPLELIGHT ) && defined( USERAIN ) ) || defined( USEHEAT )
+					float4 ase_texcoord6 : TEXCOORD6;
+					#endif
+					#if ( defined( FAKERIPPLELIGHT ) && defined( USERAIN ) ) || defined( USEHEAT )
+					float4 ase_texcoord7 : TEXCOORD7;
+					#endif
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 					UNITY_VERTEX_OUTPUT_STEREO
 				};
@@ -1317,28 +1926,47 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
 				uniform float _StencilType;
 				uniform float _TransparentObjectShadowStrength;
+				uniform float _DropsSpec;
 				uniform sampler2D _MainTex;
 				uniform float4 _MainTex_ST;
 				uniform float3 _Color;
+				uniform float _RainEffectsMaterial;
+				uniform float _RainIntensity;
+				uniform float _RainIntensityRippleScale;
+				uniform float3 _LocalRainAverage;
+				uniform float3 _LocalRain;
+				uniform float _SkinnedMeshMaterial;
+				uniform sampler2D _RippleTexture;
+				uniform float _RippleTexScale;
+				uniform float3 _EnvironmentRippleCycle;
+				uniform float _WetDropAlbedo;
+				uniform float4 _Temperature;
+				uniform sampler2D _BumpMap1;
+				uniform float4 _BumpMap1_ST;
+				uniform float _NormalIntensity;
+				uniform float _WetDropNormal;
+				uniform float4 _HeatColor1;
+				uniform float4 _HeatColor2;
+				uniform float4 _HeatCenter;
+				uniform float4 _HeatSize;
+				uniform float _HeatTemp;
+				uniform float _HeatVisibleFactor;
+				uniform float _SpecularAngularBoost;
+				uniform float _SpecularBaseStrength;
+				uniform float _HeatThermalFactor;
+				uniform float _ThermalVisionOn;
+				uniform float _HeatVisible;
+				uniform float4 _SunDirection;
+				uniform float _NdotLOffset;
+				uniform float _RippleFakeLightIntensityOffset;
+				uniform float _NightRippleFakeLightOffset;
+				uniform float _RippleFakeLightIntensity;
 				uniform sampler2D _SpecMap;
 				uniform float4 _SpecMap_ST;
 				uniform float _OpacityMult;
+				uniform float _DropletOpacityBoost;
 
 
 				
@@ -1350,10 +1978,42 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					UNITY_TRANSFER_INSTANCE_ID(v,o);
 					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
+					float3 ase_positionWS = mul( unity_ObjectToWorld, float4( ( v.vertex ).xyz, 1 ) ).xyz;
+					float3 ase_tangentWS = UnityObjectToWorldDir( v.tangent );
+					float3 ase_normalWS = UnityObjectToWorldNormal( v.normal );
+					float ase_tangentSign = v.tangent.w * ( unity_WorldTransformParams.w >= 0.0 ? 1.0 : -1.0 );
+					float3 ase_bitangentWS = cross( ase_normalWS, ase_tangentWS ) * ase_tangentSign;
+					
 					o.ase_texcoord2.xy = v.texcoord.xyzw.xy;
+					o.ase_normal = v.normal;
+					o.ase_texcoord3 = v.vertex;
+					#if defined( USEHEAT )
+					o.ase_texcoord4.xyz = ase_positionWS;
+					#endif
+					#if ( defined( FAKERIPPLELIGHT ) && defined( USERAIN ) ) || defined( USEHEAT )
+					o.ase_texcoord5.xyz = ase_tangentWS;
+					#endif
+					#if ( defined( FAKERIPPLELIGHT ) && defined( USERAIN ) ) || defined( USEHEAT )
+					o.ase_texcoord6.xyz = ase_normalWS;
+					#endif
+					#if ( defined( FAKERIPPLELIGHT ) && defined( USERAIN ) ) || defined( USEHEAT )
+					o.ase_texcoord7.xyz = ase_bitangentWS;
+					#endif
 					
 					//setting value to unused interpolator channels and avoid initialization warnings
 					o.ase_texcoord2.zw = 0;
+					#if defined( USEHEAT )
+					o.ase_texcoord4.w = 0;
+					#endif
+					#if ( defined( FAKERIPPLELIGHT ) && defined( USERAIN ) ) || defined( USEHEAT )
+					o.ase_texcoord5.w = 0;
+					#endif
+					#if ( defined( FAKERIPPLELIGHT ) && defined( USERAIN ) ) || defined( USEHEAT )
+					o.ase_texcoord6.w = 0;
+					#endif
+					#if ( defined( FAKERIPPLELIGHT ) && defined( USERAIN ) ) || defined( USEHEAT )
+					o.ase_texcoord7.w = 0;
+					#endif
 
 					#ifdef ASE_ABSOLUTE_VERTEX_POS
 						float3 defaultVertexValue = v.vertex.xyz;
@@ -1496,26 +2156,253 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					#endif
 
 					float2 uv_MainTex = IN.ase_texcoord2.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-					float4 tex2DNode126 = tex2D( _MainTex, uv_MainTex );
+					float4 tex2DNode526 = tex2D( _MainTex, uv_MainTex );
 					float3 staticSwitch111 = ( float3 )0;
 					#ifdef _USECOLORCORRECTION1_ON
 					{
-						staticSwitch111 = ( _Color * tex2DNode126.rgb );
+						staticSwitch111 = ( _Color * tex2DNode526.rgb );
 					}
 					#else
 					{
-						staticSwitch111 = tex2DNode126.rgb;
+						staticSwitch111 = tex2DNode526.rgb;
 					}
 					#endif
+					float dotResult230 = dot( IN.ase_normal , _LocalRainAverage );
+					float dotResult227 = dot( IN.ase_normal , _LocalRain );
+					float4 tex2DNode25_g10 = tex2D( _RippleTexture, ( uv_MainTex / _RippleTexScale ) );
+					float temp_output_34_0_g10 = ( tex2DNode25_g10.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g10.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_183_13 = temp_output_34_0_g10;
+					float3 break196 = max( ( abs( IN.ase_normal ) - 0.49 ), 0.0 );
+					float temp_output_197_0 = ( break196.x + break196.y + break196.z );
+					float temp_output_198_0 = ( break196.x / temp_output_197_0 );
+					float3 break202 = ( IN.ase_texcoord3.xyz * _RippleTexScale );
+					float2 appendResult203 = (float2(break202.y , break202.z));
+					float4 tex2DNode25_g9 = tex2D( _RippleTexture, appendResult203 );
+					float temp_output_34_0_g9 = ( tex2DNode25_g9.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g9.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_199_0 = ( break196.y / temp_output_197_0 );
+					float2 appendResult205 = (float2(break202.z , break202.x));
+					float4 tex2DNode25_g8 = tex2D( _RippleTexture, appendResult205 );
+					float temp_output_34_0_g8 = ( tex2DNode25_g8.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g8.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_200_0 = ( break196.z / temp_output_197_0 );
+					float2 appendResult207 = (float2(break202.x , break202.y));
+					float4 tex2DNode25_g7 = tex2D( _RippleTexture, appendResult207 );
+					float temp_output_34_0_g7 = ( tex2DNode25_g7.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g7.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float staticSwitch219 = ( float )0;
+					#ifdef TRIPLANAR
+					{
+						staticSwitch219 = ( ( temp_output_198_0 * temp_output_34_0_g9 ) + ( temp_output_199_0 * temp_output_34_0_g8 ) + ( temp_output_200_0 * temp_output_34_0_g7 ) );
+					}
+					#else
+					{
+						staticSwitch219 = temp_output_183_13;
+					}
+					#endif
+					float ifLocalVar221 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					ifLocalVar221 = staticSwitch219;
+					else
+					ifLocalVar221 = temp_output_183_13;
+					float ifLocalVar243 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					{
+						ifLocalVar243 = ifLocalVar221;
+					}
+					else
+					{
+						ifLocalVar243 = ( 0.35 * ifLocalVar221 );
+					}
+					float temp_output_278_0 = ( _RainEffectsMaterial * ( ( saturate( ( _RainIntensity * _RainIntensityRippleScale ) ) * saturate( ( max( dotResult230, 0.0 ) + max( dotResult227, 0.0 ) ) ) ) * ifLocalVar243 ) );
+					float3 staticSwitch268 = ( float3 )0;
+					#ifdef USERAIN
+					{
+						float3 color261 = IsGammaSpace() ? float3( 0, 0, 0 ) : float3( 0, 0, 0 );
+						float3 lerpResult262 = lerp( staticSwitch111 , color261 , ( temp_output_278_0 * _WetDropAlbedo ));
+						staticSwitch268 = lerpResult262;
+					}
+					#else
+					{
+						staticSwitch268 = staticSwitch111;
+					}
+					#endif
+					#ifdef Rain
+					float3 staticSwitch269 = staticSwitch268;
+					#else
+					float3 staticSwitch269 = staticSwitch111;
+					#endif
+					float3 Surface_Albedo284 = staticSwitch269;
+					float3 temp_cast_0 = (0.0).xxx;
+					float2 uv_BumpMap1 = IN.ase_texcoord2.xy * _BumpMap1_ST.xy + _BumpMap1_ST.zw;
+					float3 tex2DNode125 = UnpackScaleNormal( tex2D( _BumpMap1, uv_BumpMap1 ), _NormalIntensity );
+					float2 appendResult16_g10 = (float2(tex2DNode25_g10.g , tex2DNode25_g10.b));
+					float2 temp_output_183_0 = ( ( ( appendResult16_g10 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g10 - 0.5 ) ) );
+					float2 appendResult16_g9 = (float2(tex2DNode25_g9.g , tex2DNode25_g9.b));
+					float2 appendResult16_g8 = (float2(tex2DNode25_g8.g , tex2DNode25_g8.b));
+					float2 appendResult16_g7 = (float2(tex2DNode25_g7.g , tex2DNode25_g7.b));
+					float2 staticSwitch220 = ( float2 )0;
+					#ifdef TRIPLANAR
+					{
+						staticSwitch220 = ( ( temp_output_198_0 * ( ( ( appendResult16_g9 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g9 - 0.5 ) ) ) ) + ( temp_output_199_0 * ( ( ( appendResult16_g8 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g8 - 0.5 ) ) ) ) + ( temp_output_200_0 * ( ( ( appendResult16_g7 * 2.0 ) - 1.0 ) * saturate( ( temp_output_34_0_g7 - 0.5 ) ) ) ) );
+					}
+					#else
+					{
+						staticSwitch220 = temp_output_183_0;
+					}
+					#endif
+					float3 staticSwitch271 = ( float3 )0;
+					#ifdef USERAIN
+					{
+						float2 ifLocalVar223 = 0;
+						if( _SkinnedMeshMaterial <= 0.0 )
+						ifLocalVar223 = staticSwitch220;
+						else
+						ifLocalVar223 = temp_output_183_0;
+						float3 appendResult249 = (float3(( 7.0 * ifLocalVar223 ) , 1.0));
+						float3 normalizeResult251 = normalize( appendResult249 );
+						float3 lerpResult264 = lerp( tex2DNode125 , normalizeResult251 , ( _WetDropNormal * temp_output_278_0 ));
+						staticSwitch271 = lerpResult264;
+					}
+					#else
+					{
+						staticSwitch271 = tex2DNode125;
+					}
+					#endif
+					#ifdef Rain
+					float3 staticSwitch270 = staticSwitch271;
+					#else
+					float3 staticSwitch270 = tex2DNode125;
+					#endif
+					float3 staticSwitch283 = ( float3 )0;
+					#ifdef USEHEAT
+					{
+						float4 break289 = _HeatCenter;
+						float3 appendResult291 = (float3(break289.x , break289.y , break289.z));
+						float4 break290 = _HeatSize;
+						float3 appendResult292 = (float3(break290.x , break290.y , break290.z));
+						float temp_output_22_0_g293 = max( ( ( _HeatTemp - 30.0 ) * 0.1 ), 0.0 );
+						float temp_output_24_0_g293 = ( max( ( 1.0 - length( ( ( IN.ase_texcoord3.xyz - appendResult291 ) / max( abs( appendResult292 ), 0.0001 ) ) ) ), 0.0 ) * ( temp_output_22_0_g293 * temp_output_22_0_g293 ) );
+						float3 lerpResult25_g293 = lerp( _HeatColor1.rgb , _HeatColor2.rgb , temp_output_24_0_g293);
+						float3 ase_positionWS = IN.ase_texcoord4.xyz;
+						float3 ase_tangentWS = IN.ase_texcoord5.xyz;
+						float3 ase_normalWS = IN.ase_texcoord6.xyz;
+						float3 ase_bitangentWS = IN.ase_texcoord7.xyz;
+						float3 tanToWorld0 = float3( ase_tangentWS.x, ase_bitangentWS.x, ase_normalWS.x );
+						float3 tanToWorld1 = float3( ase_tangentWS.y, ase_bitangentWS.y, ase_normalWS.y );
+						float3 tanToWorld2 = float3( ase_tangentWS.z, ase_bitangentWS.z, ase_normalWS.z );
+						float3 ase_viewVectorTS =  tanToWorld0 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - ase_positionWS : UNITY_MATRIX_V[ 2 ].xyz ).x + tanToWorld1 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - ase_positionWS : UNITY_MATRIX_V[ 2 ].xyz ).y  + tanToWorld2 * ( ( unity_OrthoParams.w == 0 ) ? _WorldSpaceCameraPos - ase_positionWS : UNITY_MATRIX_V[ 2 ].xyz ).z;
+						float3 ase_viewDirTS = normalize( ase_viewVectorTS );
+						float3 normalizeResult132 = normalize( ase_viewDirTS );
+						float dotResult130 = dot( staticSwitch270 , normalizeResult132 );
+						float temp_output_133_0 = ( 1.0 - dotResult130 );
+						float Angle_Ref137 = ( ( temp_output_133_0 * temp_output_133_0 ) * 0.5 );
+						float Specular_Angle_Response287 = ( ( ( Angle_Ref137 * _SpecularAngularBoost ) + _SpecularBaseStrength ) * 0.5 );
+						staticSwitch283 = ( ( ( lerpResult25_g293 * temp_output_24_0_g293 ) * _HeatVisibleFactor ) * Specular_Angle_Response287 );
+					}
+					#else
+					{
+						staticSwitch283 = temp_cast_0;
+					}
+					#endif
+					float3 Localized_Heat_Radiance297 = staticSwitch283;
+					float3 staticSwitch308 = ( float3 )0;
+					#ifdef USEHEAT
+					{
+						staticSwitch308 = ( Surface_Albedo284 + ( Localized_Heat_Radiance297 * 10.0 ) );
+					}
+					#else
+					{
+						staticSwitch308 = ( Surface_Albedo284 * _Temperature.z );
+					}
+					#endif
+					float4 break4_g309 = _Temperature;
+					float ifLocalVar311 = 0;
+					if( _ThermalVisionOn <= 0.0 )
+					{
+						ifLocalVar311 = 0.0;
+					}
+					else
+					{
+						ifLocalVar311 = 1.0;
+					}
+					float3 lerpResult312 = lerp( Surface_Albedo284 , ( min( max( staticSwitch308, ( break4_g309.x * _HeatThermalFactor ) ), break4_g309.y ) + break4_g309.w ) , ifLocalVar311);
+					
+					float3 Visible_Heat_Emission300 = ( Localized_Heat_Radiance297 * _HeatVisible );
+					float3 Surface_Normal285 = staticSwitch270;
+					float staticSwitch319 = ( float )0;
+					#ifdef USERAIN
+					{
+						float staticSwitch318 = ( float )0;
+						#ifdef FAKERIPPLELIGHT
+						{
+							float3 ase_tangentWS = IN.ase_texcoord5.xyz;
+							float3 ase_normalWS = IN.ase_texcoord6.xyz;
+							float3 ase_bitangentWS = IN.ase_texcoord7.xyz;
+							float3 tanToWorld0 = float3( ase_tangentWS.x, ase_bitangentWS.x, ase_normalWS.x );
+							float3 tanToWorld1 = float3( ase_tangentWS.y, ase_bitangentWS.y, ase_normalWS.y );
+							float3 tanToWorld2 = float3( ase_tangentWS.z, ase_bitangentWS.z, ase_normalWS.z );
+							float3 tanNormal314 = Surface_Normal285;
+							float3 worldNormal314 = float3( dot( tanToWorld0, tanNormal314 ), dot( tanToWorld1, tanNormal314 ), dot( tanToWorld2, tanNormal314 ) );
+							float3 temp_output_4_0_g316 = _SunDirection.xyz;
+							float3 temp_output_14_0_g316 = ( temp_output_4_0_g316 * -1.0 );
+							float dotResult18_g316 = dot( worldNormal314 , ( temp_output_14_0_g316 / max( length( temp_output_14_0_g316 ), 0.0001 ) ) );
+							float Material_Drop_Mask286 = ifLocalVar243;
+							float3 break27_g316 = Surface_Normal285;
+							float2 appendResult28_g316 = (float2(break27_g316.x , break27_g316.y));
+							float ifLocalVar30_g316 = 0;
+							if( length( appendResult28_g316 ) <= 0.32 )
+							ifLocalVar30_g316 = 0.0;
+							else
+							ifLocalVar30_g316 = 1.0;
+							float ifLocalVar31_g316 = 0;
+							if( break27_g316.x <= 0.0 )
+							ifLocalVar31_g316 = 0.0;
+							else
+							ifLocalVar31_g316 = 1.0;
+							staticSwitch318 = ( ( ( ( ( saturate( ( max( dotResult18_g316, 0.0 ) + _NdotLOffset ) ) * ceil( ( Material_Drop_Mask286 - _RippleFakeLightIntensityOffset ) ) ) * saturate( ( _NightRippleFakeLightOffset - temp_output_4_0_g316.y ) ) ) * ( ifLocalVar30_g316 * ifLocalVar31_g316 ) ) * _RippleFakeLightIntensity ) * _RainEffectsMaterial );
+						}
+						#else
+						{
+							staticSwitch318 = 0.0;
+						}
+						#endif
+						staticSwitch319 = staticSwitch318;
+					}
+					#else
+					{
+						staticSwitch319 = 0.0;
+					}
+					#endif
+					#ifdef Rain
+					float staticSwitch320 = staticSwitch319;
+					#else
+					float staticSwitch320 = 0.0;
+					#endif
+					float Rain_Highlight_Emission321 = staticSwitch320;
 					
 					float2 uv_SpecMap = IN.ase_texcoord2.xy * _SpecMap_ST.xy + _SpecMap_ST.zw;
 					float4 tex2DNode128 = tex2D( _SpecMap, uv_SpecMap );
+					float temp_output_530_0 = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					#ifdef USERAIN
+					float staticSwitch602 = temp_output_278_0;
+					#else
+					float staticSwitch602 = 0.0;
+					#endif
+					#ifdef Rain
+					float staticSwitch603 = staticSwitch602;
+					#else
+					float staticSwitch603 = 0.0;
+					#endif
+					float ifLocalVar606 = 0;
+					if( temp_output_530_0 > 0.0 )
+					{
+						ifLocalVar606 = saturate( ( staticSwitch603 * _DropletOpacityBoost ) );
+					}
+					float lerpResult607 = lerp( temp_output_530_0 , 1.0 , ifLocalVar606);
 					
 
-					o.Albedo = staticSwitch111;
+					o.Albedo = lerpResult312;
 					o.Normal = half3( 0, 0, 1 );
-					o.Emission = half3( 0, 0, 0 );
-					o.Alpha = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					o.Emission = ( Visible_Heat_Emission300 + Rain_Highlight_Emission321 );
+					o.Alpha = lerpResult607;
 					half AlphaClipThreshold = 0.5;
 
 					#ifdef _ALPHATEST_ON
@@ -1561,6 +2448,11 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 				#pragma fragment frag
 				#pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
 				#pragma multi_compile_shadowcaster
+				#pragma multi_compile _ HIDE_SHADOW
+				#if defined(HIDE_SHADOW)
+					float _HideGunShadow;
+					float _StencilType;
+				#endif
 				#ifndef UNITY_PASS_SHADOWCASTER
 					#define UNITY_PASS_SHADOWCASTER
 				#endif
@@ -1582,6 +2474,11 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 				#include "UnityPBSLighting.cginc"
 
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_FRAG_NORMAL
+				#define ASE_NEEDS_FRAG_TEXTURE_COORDINATES0
+				#pragma multi_compile _ Rain
+				#pragma multi_compile _ USERAIN
+				#pragma multi_compile _ TRIPLANAR
 
 
 				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
@@ -1608,6 +2505,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					ASE_SV_POSITION_QUALIFIERS UNITY_POSITION( pos );
 					V2F_SHADOW_CASTER_NOPOS
 					float4 ase_texcoord1 : TEXCOORD1;
+					float3 ase_normal : NORMAL;
+					float4 ase_texcoord2 : TEXCOORD2;
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 					UNITY_VERTEX_OUTPUT_STEREO
 				};
@@ -1624,25 +2523,23 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
-				uniform float _StencilType;
 				uniform float _TransparentObjectShadowStrength;
+				uniform float _DropsSpec;
 				uniform sampler2D _SpecMap;
 				uniform float4 _SpecMap_ST;
 				uniform float _OpacityMult;
+				uniform float _RainEffectsMaterial;
+				uniform float _RainIntensity;
+				uniform float _RainIntensityRippleScale;
+				uniform float3 _LocalRainAverage;
+				uniform float3 _LocalRain;
+				uniform float _SkinnedMeshMaterial;
+				uniform sampler2D _RippleTexture;
+				uniform sampler2D _MainTex;
+				uniform float4 _MainTex_ST;
+				uniform float _RippleTexScale;
+				uniform float3 _EnvironmentRippleCycle;
+				uniform float _DropletOpacityBoost;
 
 
 				
@@ -1655,6 +2552,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
 					o.ase_texcoord1.xy = v.ase_texcoord.xy;
+					o.ase_normal = v.normal;
+					o.ase_texcoord2 = v.vertex;
 					
 					//setting value to unused interpolator channels and avoid initialization warnings
 					o.ase_texcoord1.zw = 0;
@@ -1797,11 +2696,70 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 
 					float2 uv_SpecMap = IN.ase_texcoord1.xy * _SpecMap_ST.xy + _SpecMap_ST.zw;
 					float4 tex2DNode128 = tex2D( _SpecMap, uv_SpecMap );
+					float temp_output_530_0 = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					float dotResult230 = dot( IN.ase_normal , _LocalRainAverage );
+					float dotResult227 = dot( IN.ase_normal , _LocalRain );
+					float2 uv_MainTex = IN.ase_texcoord1.xy * _MainTex_ST.xy + _MainTex_ST.zw;
+					float4 tex2DNode25_g10 = tex2D( _RippleTexture, ( uv_MainTex / _RippleTexScale ) );
+					float temp_output_34_0_g10 = ( tex2DNode25_g10.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g10.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_183_13 = temp_output_34_0_g10;
+					float3 break196 = max( ( abs( IN.ase_normal ) - 0.49 ), 0.0 );
+					float temp_output_197_0 = ( break196.x + break196.y + break196.z );
+					float3 break202 = ( IN.ase_texcoord2.xyz * _RippleTexScale );
+					float2 appendResult203 = (float2(break202.y , break202.z));
+					float4 tex2DNode25_g9 = tex2D( _RippleTexture, appendResult203 );
+					float temp_output_34_0_g9 = ( tex2DNode25_g9.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g9.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float2 appendResult205 = (float2(break202.z , break202.x));
+					float4 tex2DNode25_g8 = tex2D( _RippleTexture, appendResult205 );
+					float temp_output_34_0_g8 = ( tex2DNode25_g8.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g8.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float2 appendResult207 = (float2(break202.x , break202.y));
+					float4 tex2DNode25_g7 = tex2D( _RippleTexture, appendResult207 );
+					float temp_output_34_0_g7 = ( tex2DNode25_g7.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g7.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float staticSwitch219 = ( float )0;
+					#ifdef TRIPLANAR
+					{
+						staticSwitch219 = ( ( ( break196.x / temp_output_197_0 ) * temp_output_34_0_g9 ) + ( ( break196.y / temp_output_197_0 ) * temp_output_34_0_g8 ) + ( ( break196.z / temp_output_197_0 ) * temp_output_34_0_g7 ) );
+					}
+					#else
+					{
+						staticSwitch219 = temp_output_183_13;
+					}
+					#endif
+					float ifLocalVar221 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					ifLocalVar221 = staticSwitch219;
+					else
+					ifLocalVar221 = temp_output_183_13;
+					float ifLocalVar243 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					{
+						ifLocalVar243 = ifLocalVar221;
+					}
+					else
+					{
+						ifLocalVar243 = ( 0.35 * ifLocalVar221 );
+					}
+					#ifdef USERAIN
+					float staticSwitch602 = ( _RainEffectsMaterial * ( ( saturate( ( _RainIntensity * _RainIntensityRippleScale ) ) * saturate( ( max( dotResult230, 0.0 ) + max( dotResult227, 0.0 ) ) ) ) * ifLocalVar243 ) );
+					#else
+					float staticSwitch602 = 0.0;
+					#endif
+					#ifdef Rain
+					float staticSwitch603 = staticSwitch602;
+					#else
+					float staticSwitch603 = 0.0;
+					#endif
+					float ifLocalVar606 = 0;
+					if( temp_output_530_0 > 0.0 )
+					{
+						ifLocalVar606 = saturate( ( staticSwitch603 * _DropletOpacityBoost ) );
+					}
+					float lerpResult607 = lerp( temp_output_530_0 , 1.0 , ifLocalVar606);
 					
 
 					o.Normal = half3( 0, 0, 1 );
 
-					o.Alpha = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					o.Alpha = lerpResult607;
 					half AlphaClipThreshold = 0.5;
 					half AlphaClipThresholdShadow = 0.5;
 
@@ -1831,6 +2789,11 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 						outputDepth = IN.pos.z;
 					#endif
 
+					// The game sets this global for the weapon flashlight shadow map.
+					#if defined(HIDE_SHADOW)
+						if (_HideGunShadow * _StencilType >= 2.0)
+							discard;
+					#endif
 					SHADOW_CASTER_FRAGMENT(IN)
 				}
 			ENDCG
@@ -1884,6 +2847,11 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 				#include "AutoLight.cginc"
 
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_FRAG_NORMAL
+				#define ASE_NEEDS_FRAG_TEXTURE_COORDINATES0
+				#pragma multi_compile _ Rain
+				#pragma multi_compile _ USERAIN
+				#pragma multi_compile _ TRIPLANAR
 
 
 				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
@@ -1912,6 +2880,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					float4 worldPos : TEXCOORD0; // xyz = positionWS
 					half3 normalWS : TEXCOORD1;
 					float4 ase_texcoord2 : TEXCOORD2;
+					float3 ase_normal : NORMAL;
+					float4 ase_texcoord3 : TEXCOORD3;
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 					UNITY_VERTEX_OUTPUT_STEREO
 				};
@@ -1925,25 +2895,24 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
 				uniform float _StencilType;
 				uniform float _TransparentObjectShadowStrength;
+				uniform float _DropsSpec;
 				uniform sampler2D _SpecMap;
 				uniform float4 _SpecMap_ST;
 				uniform float _OpacityMult;
+				uniform float _RainEffectsMaterial;
+				uniform float _RainIntensity;
+				uniform float _RainIntensityRippleScale;
+				uniform float3 _LocalRainAverage;
+				uniform float3 _LocalRain;
+				uniform float _SkinnedMeshMaterial;
+				uniform sampler2D _RippleTexture;
+				uniform sampler2D _MainTex;
+				uniform float4 _MainTex_ST;
+				uniform float _RippleTexScale;
+				uniform float3 _EnvironmentRippleCycle;
+				uniform float _DropletOpacityBoost;
 
 
 				
@@ -1956,6 +2925,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
 					o.ase_texcoord2.xy = v.ase_texcoord.xy;
+					o.ase_normal = v.normal;
+					o.ase_texcoord3 = v.vertex;
 					
 					//setting value to unused interpolator channels and avoid initialization warnings
 					o.ase_texcoord2.zw = 0;
@@ -2081,9 +3052,68 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 
 					float2 uv_SpecMap = IN.ase_texcoord2.xy * _SpecMap_ST.xy + _SpecMap_ST.zw;
 					float4 tex2DNode128 = tex2D( _SpecMap, uv_SpecMap );
+					float temp_output_530_0 = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					float dotResult230 = dot( IN.ase_normal , _LocalRainAverage );
+					float dotResult227 = dot( IN.ase_normal , _LocalRain );
+					float2 uv_MainTex = IN.ase_texcoord2.xy * _MainTex_ST.xy + _MainTex_ST.zw;
+					float4 tex2DNode25_g10 = tex2D( _RippleTexture, ( uv_MainTex / _RippleTexScale ) );
+					float temp_output_34_0_g10 = ( tex2DNode25_g10.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g10.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_183_13 = temp_output_34_0_g10;
+					float3 break196 = max( ( abs( IN.ase_normal ) - 0.49 ), 0.0 );
+					float temp_output_197_0 = ( break196.x + break196.y + break196.z );
+					float3 break202 = ( IN.ase_texcoord3.xyz * _RippleTexScale );
+					float2 appendResult203 = (float2(break202.y , break202.z));
+					float4 tex2DNode25_g9 = tex2D( _RippleTexture, appendResult203 );
+					float temp_output_34_0_g9 = ( tex2DNode25_g9.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g9.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float2 appendResult205 = (float2(break202.z , break202.x));
+					float4 tex2DNode25_g8 = tex2D( _RippleTexture, appendResult205 );
+					float temp_output_34_0_g8 = ( tex2DNode25_g8.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g8.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float2 appendResult207 = (float2(break202.x , break202.y));
+					float4 tex2DNode25_g7 = tex2D( _RippleTexture, appendResult207 );
+					float temp_output_34_0_g7 = ( tex2DNode25_g7.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g7.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float staticSwitch219 = ( float )0;
+					#ifdef TRIPLANAR
+					{
+						staticSwitch219 = ( ( ( break196.x / temp_output_197_0 ) * temp_output_34_0_g9 ) + ( ( break196.y / temp_output_197_0 ) * temp_output_34_0_g8 ) + ( ( break196.z / temp_output_197_0 ) * temp_output_34_0_g7 ) );
+					}
+					#else
+					{
+						staticSwitch219 = temp_output_183_13;
+					}
+					#endif
+					float ifLocalVar221 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					ifLocalVar221 = staticSwitch219;
+					else
+					ifLocalVar221 = temp_output_183_13;
+					float ifLocalVar243 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					{
+						ifLocalVar243 = ifLocalVar221;
+					}
+					else
+					{
+						ifLocalVar243 = ( 0.35 * ifLocalVar221 );
+					}
+					#ifdef USERAIN
+					float staticSwitch602 = ( _RainEffectsMaterial * ( ( saturate( ( _RainIntensity * _RainIntensityRippleScale ) ) * saturate( ( max( dotResult230, 0.0 ) + max( dotResult227, 0.0 ) ) ) ) * ifLocalVar243 ) );
+					#else
+					float staticSwitch602 = 0.0;
+					#endif
+					#ifdef Rain
+					float staticSwitch603 = staticSwitch602;
+					#else
+					float staticSwitch603 = 0.0;
+					#endif
+					float ifLocalVar606 = 0;
+					if( temp_output_530_0 > 0.0 )
+					{
+						ifLocalVar606 = saturate( ( staticSwitch603 * _DropletOpacityBoost ) );
+					}
+					float lerpResult607 = lerp( temp_output_530_0 , 1.0 , ifLocalVar606);
 					
 
-					half Alpha = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					half Alpha = lerpResult607;
 					half AlphaClipThreshold = 0.5;
 
 					#if defined( ASE_WRITE_DEPTH )
@@ -2152,6 +3182,11 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 				#include "AutoLight.cginc"
 
 				#define ASE_NEEDS_TEXTURE_COORDINATES0
+				#define ASE_NEEDS_FRAG_NORMAL
+				#define ASE_NEEDS_FRAG_TEXTURE_COORDINATES0
+				#pragma multi_compile _ Rain
+				#pragma multi_compile _ USERAIN
+				#pragma multi_compile _ TRIPLANAR
 
 
 				#if defined(ASE_WRITE_DEPTH_CONSERVATIVE) && (SHADER_TARGET >= 45)
@@ -2179,6 +3214,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					float4 worldPos : TEXCOORD0; // xyz = positionWS
 					half3 normalWS : TEXCOORD1;
 					float4 ase_texcoord2 : TEXCOORD2;
+					float3 ase_normal : NORMAL;
+					float4 ase_texcoord3 : TEXCOORD3;
 					UNITY_VERTEX_INPUT_INSTANCE_ID
 					UNITY_VERTEX_OUTPUT_STEREO
 				};
@@ -2192,25 +3229,24 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					float _TessMaxDisp;
 				#endif
 
-				uniform float _RippleTexScale;
-				uniform float _RippleFakeLightIntensityOffset;
-				uniform float _NightRippleFakeLightOffset;
-				uniform float _NdotLOffset;
-				uniform float4 _HeatColor1;
-				uniform float4 _HeatColor2;
-				uniform float3 _Temperature;
-				uniform float4 _HeatSize;
-				uniform float4 _HeatCenter;
-				uniform float _HeatTemp;
-				uniform float _DropsSpec;
-				uniform float _USERAIN;
-				uniform float USEHEAT;
-				uniform float _HeatVisible;
 				uniform float _StencilType;
 				uniform float _TransparentObjectShadowStrength;
+				uniform float _DropsSpec;
 				uniform sampler2D _SpecMap;
 				uniform float4 _SpecMap_ST;
 				uniform float _OpacityMult;
+				uniform float _RainEffectsMaterial;
+				uniform float _RainIntensity;
+				uniform float _RainIntensityRippleScale;
+				uniform float3 _LocalRainAverage;
+				uniform float3 _LocalRain;
+				uniform float _SkinnedMeshMaterial;
+				uniform sampler2D _RippleTexture;
+				uniform sampler2D _MainTex;
+				uniform float4 _MainTex_ST;
+				uniform float _RippleTexScale;
+				uniform float3 _EnvironmentRippleCycle;
+				uniform float _DropletOpacityBoost;
 
 
 				
@@ -2223,6 +3259,8 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
 					o.ase_texcoord2.xy = v.ase_texcoord.xy;
+					o.ase_normal = v.normal;
+					o.ase_texcoord3 = v.vertex;
 					
 					//setting value to unused interpolator channels and avoid initialization warnings
 					o.ase_texcoord2.zw = 0;
@@ -2348,9 +3386,68 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 
 					float2 uv_SpecMap = IN.ase_texcoord2.xy * _SpecMap_ST.xy + _SpecMap_ST.zw;
 					float4 tex2DNode128 = tex2D( _SpecMap, uv_SpecMap );
+					float temp_output_530_0 = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					float dotResult230 = dot( IN.ase_normal , _LocalRainAverage );
+					float dotResult227 = dot( IN.ase_normal , _LocalRain );
+					float2 uv_MainTex = IN.ase_texcoord2.xy * _MainTex_ST.xy + _MainTex_ST.zw;
+					float4 tex2DNode25_g10 = tex2D( _RippleTexture, ( uv_MainTex / _RippleTexScale ) );
+					float temp_output_34_0_g10 = ( tex2DNode25_g10.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g10.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float temp_output_183_13 = temp_output_34_0_g10;
+					float3 break196 = max( ( abs( IN.ase_normal ) - 0.49 ), 0.0 );
+					float temp_output_197_0 = ( break196.x + break196.y + break196.z );
+					float3 break202 = ( IN.ase_texcoord3.xyz * _RippleTexScale );
+					float2 appendResult203 = (float2(break202.y , break202.z));
+					float4 tex2DNode25_g9 = tex2D( _RippleTexture, appendResult203 );
+					float temp_output_34_0_g9 = ( tex2DNode25_g9.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g9.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float2 appendResult205 = (float2(break202.z , break202.x));
+					float4 tex2DNode25_g8 = tex2D( _RippleTexture, appendResult205 );
+					float temp_output_34_0_g8 = ( tex2DNode25_g8.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g8.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float2 appendResult207 = (float2(break202.x , break202.y));
+					float4 tex2DNode25_g7 = tex2D( _RippleTexture, appendResult207 );
+					float temp_output_34_0_g7 = ( tex2DNode25_g7.r * saturate( ( 1.0 - ( fmod( ( ( ( tex2DNode25_g7.a * _EnvironmentRippleCycle.y ) + _EnvironmentRippleCycle.x ) / _EnvironmentRippleCycle.y ) , 1.0 ) * _EnvironmentRippleCycle.y ) ) ) * _EnvironmentRippleCycle.z );
+					float staticSwitch219 = ( float )0;
+					#ifdef TRIPLANAR
+					{
+						staticSwitch219 = ( ( ( break196.x / temp_output_197_0 ) * temp_output_34_0_g9 ) + ( ( break196.y / temp_output_197_0 ) * temp_output_34_0_g8 ) + ( ( break196.z / temp_output_197_0 ) * temp_output_34_0_g7 ) );
+					}
+					#else
+					{
+						staticSwitch219 = temp_output_183_13;
+					}
+					#endif
+					float ifLocalVar221 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					ifLocalVar221 = staticSwitch219;
+					else
+					ifLocalVar221 = temp_output_183_13;
+					float ifLocalVar243 = 0;
+					if( _SkinnedMeshMaterial <= 0.0 )
+					{
+						ifLocalVar243 = ifLocalVar221;
+					}
+					else
+					{
+						ifLocalVar243 = ( 0.35 * ifLocalVar221 );
+					}
+					#ifdef USERAIN
+					float staticSwitch602 = ( _RainEffectsMaterial * ( ( saturate( ( _RainIntensity * _RainIntensityRippleScale ) ) * saturate( ( max( dotResult230, 0.0 ) + max( dotResult227, 0.0 ) ) ) ) * ifLocalVar243 ) );
+					#else
+					float staticSwitch602 = 0.0;
+					#endif
+					#ifdef Rain
+					float staticSwitch603 = staticSwitch602;
+					#else
+					float staticSwitch603 = 0.0;
+					#endif
+					float ifLocalVar606 = 0;
+					if( temp_output_530_0 > 0.0 )
+					{
+						ifLocalVar606 = saturate( ( staticSwitch603 * _DropletOpacityBoost ) );
+					}
+					float lerpResult607 = lerp( temp_output_530_0 , 1.0 , ifLocalVar606);
 					
 
-					half Alpha = saturate( ( tex2DNode128.a * _OpacityMult ) );
+					half Alpha = lerpResult607;
 					half AlphaClipThreshold = 0.5;
 
 					#if defined( ASE_WRITE_DEPTH )
@@ -2378,81 +3475,467 @@ Shader "Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No ACli
 }
 /*ASEBEGIN
 Version=19914
-{"type":"AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor","id":129,"pos":[-1984,96],"params":["Inherit","True","Property","_SpecMap","AO (R) Gloss (G) Opacity (A)","6","0","Create","False","1","BSG gloss map may also be used here","0","0","False","0","False","","None","None","False","gray","Auto","Texture2D","False","-1","0","2","SAMPLER2D","0","SAMPLERSTATE","1"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":110,"pos":[-1168,416],"params":["Inherit","False","Property","_OpacityMult","Opacity Mult","7","0","Create","True","0","0","0","False","0","False","Object","-1","","1","0","0","5","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor","id":128,"pos":[-1680,96],"params":["Inherit","True","Property","_TextureSample1","Texture Sample 0","3","0","Create","True","0","0","0","False","0","False","","-1","None","None","True","0","False","white","Auto","False","Object","-1","Auto","Texture2D","False","8","0","SAMPLER2D","","False","1","FLOAT2","0,0","False","2","FLOAT","0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","5","FLOAT","1","False","6","FLOAT","0","False","7","SAMPLERSTATE","","False","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
-{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":109,"pos":[-880,352],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":78,"pos":[-2144,400],"params":["Inherit","False","Global","_HeatThermalFactor","_HeatThermalFactor","15","1","[HideInInspector]","Create","False","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":57,"pos":[-2144,496],"params":["Inherit","False","Global","_ThermalVisionOn","_ThermalVisionOn","11","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":79,"pos":[-2576,-432],"params":["Inherit","False","Property","_RippleTexScale","Ripple Texture Scale","13","0","Create","False","0","0","0","True","0","False","Object","-1","","4","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":80,"pos":[-2608,-352],"params":["Inherit","False","Property","_RippleFakeLightIntensityOffset","Fake Ripple Light Offset","14","0","Create","False","0","0","0","True","0","False","Object","-1","","0.7","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":81,"pos":[-2640,-272],"params":["Inherit","False","Property","_NightRippleFakeLightOffset","Fake Night Ripple Light Offset","15","0","Create","False","0","0","0","True","0","False","Object","-1","","0.2","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":82,"pos":[-2608,-192],"params":["Inherit","False","Property","_NdotLOffset","Normal Dot Light Offset","16","0","Create","False","0","0","0","True","0","False","Object","-1","","0.4","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":52,"pos":[-2576,368],"params":["Inherit","False","Property","_HeatColor1","Heat Color 1","22","1","[HDR]","Create","False","0","0","0","True","0","False","Object","-1","","1,0,0,1","0,0,0,0","True","True","0","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
-{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":51,"pos":[-2576,576],"params":["Inherit","False","Property","_HeatColor2","Heat Color 2","23","1","[HDR]","Create","False","0","0","0","True","0","False","Object","-1","","1,0.34,0,1","0,0,0,0","True","True","0","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
-{"type":"AmplifyShaderEditor.Vector3Node, AmplifyShaderEditor","id":77,"pos":[-2608,208],"params":["Inherit","False","Property","_Temperature","Temperature Settings","21","0","Create","False","0","0","0","True","0","False","Object","-1","","0.1,0.2,0.28","0,0,0","0","4","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3"]}
-{"type":"AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor","id":62,"pos":[-2608,960],"params":["Inherit","False","Property","_HeatSize","Heat Size","25","0","Create","False","0","0","0","True","0","False","Object","-1","","0.02,0.04,0.02,1","0.02,0.04,0.02,0","0","5","FLOAT4","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
-{"type":"AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor","id":61,"pos":[-2544,784],"params":["Inherit","False","Property","_HeatCenter","Heat Center","24","0","Create","False","0","0","0","True","0","False","Object","-1","","0,0,0,1","0,0,0,1","0","5","FLOAT4","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":60,"pos":[-2576,1136],"params":["Inherit","False","Property","_HeatTemp","Heat Temperature","26","0","Create","False","0","0","0","True","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":50,"pos":[-2544,-512],"params":["Inherit","False","Property","_DropsSpec","Drops Spec","12","1","[Header]","Create","False","1","Rain Settings","0","0","True","1","Space(10)","False","Object","-1","","128","128","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":84,"pos":[-2608,-32],"params":["Inherit","False","Property","_SkinnedMeshMaterial","Skinned Mesh Material","18","1","[HideInInspector]","Create","False","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":83,"pos":[-2608,-112],"params":["Inherit","False","Property","_USERAIN","Material Effected By Rain","17","1","[Toggle]","Create","False","0","0","0","True","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":59,"pos":[-2576,48],"params":["Inherit","False","Property","USEHEAT","Use Metal Heat Glow","19","2","[Header]","[Toggle]","Create","False","1","Heat Settings","0","0","True","1","Space(10)","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":58,"pos":[-2576,128],"params":["Inherit","False","Property","_HeatVisible","Heat Visibility (0-1)","20","0","Create","False","0","0","0","True","0","False","Object","-1","","1","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":42,"pos":[-2640,-752],"params":["Inherit","False","Property","_StencilType","Stencil Type","0","0","Create","True","0","3","Static","0","Character","1","Hands","2","0","True","1","MaterialEnum(Static, 0, Characters, 1, Hands, 2)","False","Object","-1","","0","2","0","2","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":44,"pos":[-2576,-592],"params":["Inherit","False","Property","_NormalIntensity","Normal Intensity","10","0","Create","True","0","0","0","False","0","False","Object","-1","","1","1","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":93,"pos":[-2240,320],"params":["Inherit","False","Property","_TransparentObjectShadowStrength","Transparent Object Shadow Strength","11","0","Create","True","0","0","0","True","0","False","Object","-1","","0.5","0","0","1","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":86,"pos":[-2640,-672],"params":["Inherit","False","Property","_Smoothness","Smoothness","8","0","Create","True","0","0","0","False","0","False","Object","-1","","1","0","0","10","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":112,"pos":[-944,-688],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
-{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":113,"pos":[-272,64],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":118,"pos":[-1360,80],"params":["Inherit","False","Property","_SpecularColorIntensity","Specular Color Intensity","4","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","1","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":122,"pos":[-1328,-736],"params":["Inherit","False","Property","_Color","Base Color Correction","2","0","Create","False","0","0","0","False","0","False","Object","-1","","1,1,1,0","1,1,1,0","True","False","0","6","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
-{"type":"AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor","id":124,"pos":[-1904,368],"params":["Inherit","True","Property","_BumpMap1","Normal Map","9","1","[Normal]","Create","False","0","0","0","False","0","False","","None","None","True","bump","Auto","Texture2D","False","-1","0","2","SAMPLER2D","0","SAMPLERSTATE","1"]}
-{"type":"AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor","id":125,"pos":[-1616,368],"params":["Inherit","True","Property","_TextureSample13","Texture Sample 12","6","0","Create","True","0","0","0","False","0","False","","-1","None","None","True","0","False","white","Auto","True","Object","-1","Auto","Texture2D","False","8","0","SAMPLER2D","","False","1","FLOAT2","0,0","False","2","FLOAT","0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","5","FLOAT","1","False","6","FLOAT","0","False","7","SAMPLERSTATE","","False","6","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
-{"type":"AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor","id":127,"pos":[-1936,-128],"params":["Inherit","True","Property","_MainTex","Base Color (RGB) Spec (A)","3","0","Create","False","0","0","0","False","0","False","","None","None","False","black","Auto","Texture2D","False","-1","0","2","SAMPLER2D","0","SAMPLERSTATE","1"]}
-{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":116,"pos":[-256,-80],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
-{"type":"AmplifyShaderEditor.LerpOp, AmplifyShaderEditor","id":114,"pos":[-576,-112],"params":["Inherit","True","3","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","2","FLOAT","0","False","1","FLOAT3","0"]}
-{"type":"AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor","id":126,"pos":[-1632,-128],"params":["Inherit","True","Property","_TextureSample3","Texture Sample 0","3","0","Create","True","0","0","0","False","0","False","","-1","None","None","True","0","False","white","Auto","False","Object","-1","Auto","Texture2D","False","8","0","SAMPLER2D","","False","1","FLOAT2","0,0","False","2","FLOAT","0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","5","FLOAT","1","False","6","FLOAT","0","False","7","SAMPLERSTATE","","False","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
-{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":117,"pos":[-1008,-128],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
-{"type":"AmplifyShaderEditor.SaturateNode, AmplifyShaderEditor","id":115,"pos":[-32,-80],"params":["Inherit","False","1","0","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":123,"pos":[-736,-192],"params":["Inherit","False","Property","_Glossness","Specular Mult","5","0","Create","False","0","0","0","False","0","False","Object","-1","","1","0","0","10","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":121,"pos":[-1168,256],"params":["Inherit","False","Constant","_Float0","Float 0","26","0","Create","True","0","0","0","False","0","False","Object","-1","","1","0","0","0","0","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":111,"pos":[-384,-608],"params":["Inherit","True","Property","_UseColorCorrection1","Use Color Correction","1","0","Create","True","0","0","0","False","0","False","","0","0","0","True","","Toggle","2","Key0","Key1","Create","True","True","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
-{"type":"AmplifyShaderEditor.SaturateNode, AmplifyShaderEditor","id":130,"pos":[-248,176],"params":["Inherit","False","1","0","FLOAT","0","False","1","FLOAT","0"]}
-{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":0,"pos":[0,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed95fe726fd7b4644bb42f4d1ddd2bcd","True","ExtraPrePass","0","0","ExtraPrePass","6","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","True","1","1","False","","0","False","","0","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","False","True","1","LightMode=ForwardBase","False","False","0","","0","0","Standard","0","False","0"]}
-{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":2,"pos":[0,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed95fe726fd7b4644bb42f4d1ddd2bcd","True","ForwardAdd","0","2","ForwardAdd","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","True","4","5","False","","1","False","","0","1","False","","0","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","2","False","","False","False","False","True","1","LightMode=ForwardAdd","False","False","0","","0","0","Standard","0","False","0"]}
-{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":3,"pos":[0,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed95fe726fd7b4644bb42f4d1ddd2bcd","True","Deferred","0","3","Deferred","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","True","0","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","LightMode=Deferred","False","False","0","","0","0","Standard","0","False","0"]}
-{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":4,"pos":[0,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed95fe726fd7b4644bb42f4d1ddd2bcd","True","Meta","0","4","Meta","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","2","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","LightMode=Meta","False","False","0","","0","0","Standard","0","False","0"]}
-{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":5,"pos":[0,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed95fe726fd7b4644bb42f4d1ddd2bcd","True","ShadowCaster","0","5","ShadowCaster","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","True","0","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","False","","True","3","False","","False","False","True","1","LightMode=ShadowCaster","False","False","0","","0","0","Standard","0","False","0"]}
-{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":6,"pos":[0,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed95fe726fd7b4644bb42f4d1ddd2bcd","True","SceneSelectionPass","0","6","SceneSelectionPass","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","False","","False","False","False","True","1","LightMode=SceneSelectionPass","False","False","0","","0","0","Standard","0","False","0"]}
-{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":7,"pos":[0,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed95fe726fd7b4644bb42f4d1ddd2bcd","True","ScenePickingPass","0","7","ScenePickingPass","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","False","","False","False","False","True","1","LightMode=Picking","False","False","0","","0","0","Standard","0","False","0"]}
-{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":1,"pos":[192,-128],"params":["Float","False","True","-1","3","AmplifyShaderEditor.MaterialInspector","0","3","Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No AClip ZWrite_Icon","ed95fe726fd7b4644bb42f4d1ddd2bcd","True","ForwardBase","0","1","ForwardBase","17","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","True","True","True","0","True","_StencilType","255","False","","3","False","","7","False","","3","False","","1","False","","1","False","","0","False","","0","False","","0","False","","0","False","","True","True","2","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Transparent=RenderType","Queue=Transparent=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","True","True","2","5","False","","10","False","","3","1","False","","10","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","LightMode=ForwardBase","False","False","0","","0","0","Standard","45","Category","0","0","  Instanced Terrain Normals","1","0","Workflow","0","639178329818512781","Surface","1","638973132456219333","  Blend","0","639038739748597002","  Dither Shadows","0","639262337232183380","Two Sided","1","0","Alpha Clipping","0","639099265361351078","  Use Shadow Threshold","0","0","Deferred Pass","0","639038724829800258","Normal Space","0","0","Transmission","1","639038741362378067","  Transmission Shadow","1,True,_TransparentObjectShadowStrength","639038741129572820","Translucency","0","639038740987445172","  Translucency Strength","1,False,","0","  Normal Distortion","0.5,False,","0","  Scattering","2,False,","0","  Direct","0.9,False,","0","  Ambient","0.1,False,","0","  Shadow","0.5,False,","0","Cast Shadows","1","0","Receive Shadows","1","0","Receive Specular","1","638965988478672004","Receive Reflections","1","638965988492216648","GPU Instancing","1","0","LOD CrossFade","1","0","Built-in Fog","1","0","Ambient Light","1","0","Meta Pass","1","0","Add Pass","1","0","Override Baked GI","0","0","Write Depth","0","638973149026693352","  Conservative","0","0","Extra Pre Pass","0","0","Tessellation","0","0","  Phong","0","0","  Strength","0.5,False,","0","  Type","0","0","  Tess","16,False,","0","  Min","10,False,","0","  Max","25,False,","0","  Edge Length","16,False,","0","  Max Displacement","25,False,","0","Disable Batching","0","0","Vertex Position","1","0","0","8","False","True","True","False","True","True","True","True","False","","False","0"]}
-{"wire":[128,0,129,0]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":195,"pos":[-3768,-1448],"params":["Inherit","False","Constant","_Float8","Float 8","32","0","Create","True","0","0","0","False","0","False","Object","-1","","0.49","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.AbsOpNode, AmplifyShaderEditor","id":191,"pos":[-3728,-1552],"params":["Inherit","False","1","0","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.PositionNode, AmplifyShaderEditor","id":185,"pos":[-3936,-1336],"params":["Inherit","False","0","0","4","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3"]}
+{"type":"AmplifyShaderEditor.SimpleSubtractOpNode, AmplifyShaderEditor","id":192,"pos":[-3576,-1552],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":194,"pos":[-3576,-1448],"params":["Inherit","False","Constant","_Float7","Float 7","32","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":201,"pos":[-3680,-1336],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.SimpleMaxOpNode, AmplifyShaderEditor","id":193,"pos":[-3416,-1552],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.BreakToComponentsNode, AmplifyShaderEditor","id":202,"pos":[-3552,-1336],"params":["Inherit","False","FLOAT3","1","0","FLOAT3","0,0,0","False","16","FLOAT","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT","5","FLOAT","6","FLOAT","7","FLOAT","8","FLOAT","9","FLOAT","10","FLOAT","11","FLOAT","12","FLOAT","13","FLOAT","14","FLOAT","15"]}
+{"type":"AmplifyShaderEditor.BreakToComponentsNode, AmplifyShaderEditor","id":196,"pos":[-3312,-1552],"params":["Inherit","False","FLOAT3","1","0","FLOAT3","0,0,0","False","16","FLOAT","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT","5","FLOAT","6","FLOAT","7","FLOAT","8","FLOAT","9","FLOAT","10","FLOAT","11","FLOAT","12","FLOAT","13","FLOAT","14","FLOAT","15"]}
+{"type":"AmplifyShaderEditor.SimpleAddOpNode, AmplifyShaderEditor","id":197,"pos":[-3176,-1552],"params":["Inherit","False","3","3","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.DynamicAppendNode, AmplifyShaderEditor","id":207,"pos":[-3240,-1232],"params":["Inherit","False","FLOAT2","4","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.DynamicAppendNode, AmplifyShaderEditor","id":203,"pos":[-3240,-1408],"params":["Inherit","False","FLOAT2","4","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.DynamicAppendNode, AmplifyShaderEditor","id":205,"pos":[-3240,-1320],"params":["Inherit","False","FLOAT2","4","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.SimpleDivideOpNode, AmplifyShaderEditor","id":198,"pos":[-3016,-1824],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleDivideOpNode, AmplifyShaderEditor","id":199,"pos":[-3016,-1736],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleDivideOpNode, AmplifyShaderEditor","id":200,"pos":[-3016,-1648],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.FunctionNode, AmplifyShaderEditor","id":208,"pos":[-3112,-1232],"params":["Inherit","False","Rain Ripple Sample","0","","7","7e68b3d6bfd58ad428633132fb347d6b","0","1","35","FLOAT2","0,0","False","2","FLOAT","13","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.FunctionNode, AmplifyShaderEditor","id":206,"pos":[-3112,-1320],"params":["Inherit","False","Rain Ripple Sample","0","","8","7e68b3d6bfd58ad428633132fb347d6b","0","1","35","FLOAT2","0,0","False","2","FLOAT","13","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.FunctionNode, AmplifyShaderEditor","id":204,"pos":[-3112,-1408],"params":["Inherit","False","Rain Ripple Sample","0","","9","7e68b3d6bfd58ad428633132fb347d6b","0","1","35","FLOAT2","0,0","False","2","FLOAT","13","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":79,"pos":[-3968,-608],"params":["Inherit","False","Property","_RippleTexScale","Ripple Texture Scale","19","1","[HideInInspector]","Create","False","1","Rain Settings","0","0","False","0","False","Object","-1","","4","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.TextureCoordinatesNode, AmplifyShaderEditor","id":189,"pos":[-4312,-768],"params":["Inherit","False","0","127","2","_MainTex","3","2","SAMPLER2D","","False","0","FLOAT2","1,1","False","1","FLOAT2","0,0","False","5","FLOAT2","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":211,"pos":[-2808,-1736],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":212,"pos":[-2808,-1648],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":210,"pos":[-2808,-1824],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.Vector3Node, AmplifyShaderEditor","id":162,"pos":[-3968,-2024],"params":["Inherit","False","Property","_LocalRainAverage","_LocalRainAverage","26","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","0,0,0","0,0,0","0","4","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3"]}
+{"type":"AmplifyShaderEditor.NormalVertexDataNode, AmplifyShaderEditor","id":188,"pos":[-3936,-1552],"params":["Inherit","False","0","5","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
+{"type":"AmplifyShaderEditor.Vector3Node, AmplifyShaderEditor","id":161,"pos":[-3936,-1816],"params":["Inherit","False","Property","_LocalRain","_LocalRain","25","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","0,0,0","0,0,0","0","4","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3"]}
+{"type":"AmplifyShaderEditor.SimpleDivideOpNode, AmplifyShaderEditor","id":190,"pos":[-3528,-632],"params":["Inherit","False","2","2","0","FLOAT2","0,0","False","1","FLOAT","0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.FunctionNode, AmplifyShaderEditor","id":183,"pos":[-3408,-632],"params":["Inherit","False","Rain Ripple Sample","0","","10","7e68b3d6bfd58ad428633132fb347d6b","0","1","35","FLOAT2","0,0","False","2","FLOAT","13","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.SimpleAddOpNode, AmplifyShaderEditor","id":209,"pos":[-2624,-1760],"params":["Inherit","False","3","3","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.DotProductOpNode, AmplifyShaderEditor","id":227,"pos":[-3712,-1840],"params":["Inherit","False","2","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":232,"pos":[-3736,-1920],"params":["Inherit","False","Constant","_Float11","Float 11","35","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.DotProductOpNode, AmplifyShaderEditor","id":230,"pos":[-3712,-2048],"params":["Inherit","False","2","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":219,"pos":[-2472,-1784],"params":["Inherit","False","Property","_TRIPLANAR","TRIPLANAR","35","0","Create","True","0","0","0","False","0","False","","1","0","0","False","TRIPLANAR","Toggle","2","Key0","Key1","Create","False","False","All","False","False","True","9","1","FLOAT","0","False","0","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","5","FLOAT","0","False","6","FLOAT","0","False","7","FLOAT","0","False","8","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMaxOpNode, AmplifyShaderEditor","id":228,"pos":[-3560,-1840],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMaxOpNode, AmplifyShaderEditor","id":231,"pos":[-3560,-2048],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":158,"pos":[-3968,-2272],"params":["Inherit","False","Global","_RainIntensityRippleScale","_RainIntensityRippleScale","32","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":152,"pos":[-3936,-2344],"params":["Inherit","False","Global","_RainIntensity","_RainIntensity","32","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.ConditionalIfNode, AmplifyShaderEditor","id":221,"pos":[-2216,-1720],"params":["Inherit","False","False","5","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleAddOpNode, AmplifyShaderEditor","id":233,"pos":[-3408,-1944],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":236,"pos":[-3696,-2320],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":241,"pos":[-2184,-1880],"params":["Inherit","False","Constant","_Float10","Float 10","35","0","Create","True","0","0","0","False","0","False","Object","-1","","0.35","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":222,"pos":[-2440,-1528],"params":["Inherit","False","Constant","_Float9","Float 9","35","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SaturateNode, AmplifyShaderEditor","id":234,"pos":[-3296,-1944],"params":["Inherit","False","1","0","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SaturateNode, AmplifyShaderEditor","id":238,"pos":[-3544,-2320],"params":["Inherit","False","1","0","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":242,"pos":[-1984,-1880],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":84,"pos":[-3096,-1960],"params":["Inherit","False","Property","_SkinnedMeshMaterial","Skinned Mesh Material","20","1","[HideInInspector]","Create","False","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":239,"pos":[-3104,-2320],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.ConditionalIfNode, AmplifyShaderEditor","id":243,"pos":[-1816,-1928],"params":["Inherit","False","False","5","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":245,"pos":[-1792,-2312],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":277,"pos":[-1912,-2424],"params":["Inherit","False","Property","_RainEffectsMaterial","Enable Rain on This Material","16","1","[Toggle]","Create","True","0","0","0","False","0","False","Object","-1","","1","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.CommentaryNode, AmplifyShaderEditor","id":608,"pos":[1060,1160],"params":["Inherit","False","1490","700","Raises alpha at visible droplets. Fully transparent pixels stay clear.","7","601","602","603","604","605","606","607","DROPLET OPACITY","0.12,0.38,0.5,1","0","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":278,"pos":[-1664,-2312],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":602,"pos":[1150,1340],"params":["Inherit","False","Property","_DropOpacityUser","Droplet Opacity Material Gate","35","0","Create","True","0","0","0","False","0","False","","1","0","0","False","USERAIN","Toggle","2","Key0","Key1","Reference","268","False","False","All","False","False","True","9","1","FLOAT","0","False","0","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","5","FLOAT","0","False","6","FLOAT","0","False","7","FLOAT","0","False","8","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor","id":529,"pos":[-6334,256],"params":["Inherit","True","Property","_SpecMap","AO (R) Gloss (G) Opacity (A)","8","0","Create","False","1","BSG gloss map may also be used here","0","0","False","0","False","","None","None","False","gray","Auto","Texture2D","False","-1","0","2","SAMPLER2D","0","SAMPLERSTATE","1"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":603,"pos":[1400,1340],"params":["Inherit","False","Property","_DropOpacityWeather","Droplet Opacity Weather Gate","35","0","Create","True","0","0","0","False","0","False","","1","0","0","False","Rain","Toggle","2","Key0","Key1","Reference","269","False","False","All","False","False","True","9","1","FLOAT","0","False","0","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","5","FLOAT","0","False","6","FLOAT","0","False","7","FLOAT","0","False","8","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":601,"pos":[1150,1600],"params":["Inherit","False","Property","_DropletOpacityBoost","Droplet Opacity Boost","17","0","Create","True","0","0","0","False","0","False","Object","-1","","0.15","0.15","0","1","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor","id":128,"pos":[-6030,256],"params":["Inherit","True","Property","_TextureSample1","Texture Sample 0","3","0","Create","True","0","0","0","False","0","False","","-1","None","None","True","0","False","white","Auto","False","Object","-1","Auto","Texture2D","False","8","0","SAMPLER2D","","False","1","FLOAT2","0,0","False","2","FLOAT","0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","5","FLOAT","1","False","6","FLOAT","0","False","7","SAMPLERSTATE","","False","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":110,"pos":[-5518,576],"params":["Inherit","False","Property","_OpacityMult","Opacity Mult","9","0","Create","True","0","0","0","False","0","False","Object","-1","","1","0","0","5","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":604,"pos":[1660,1450],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":109,"pos":[-5230,512],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SaturateNode, AmplifyShaderEditor","id":605,"pos":[1830,1450],"params":["Inherit","False","1","0","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.CommentaryNode, AmplifyShaderEditor","id":325,"pos":[-3650,700],"params":["Inherit","False","4300","900","Game-controlled thermal surface range. X Min / Y Max / Z Detail / W Offset. USEHEAT has its own source path; PBR reflections remain in the lighting model.","15","78","57","77","301","302","303","304","305","306","307","308","309","310","311","312","THERMAL VISION RESPONSE","0.4,0.24,0.52,1","0","0"]}
+{"type":"AmplifyShaderEditor.CommentaryNode, AmplifyShaderEditor","id":326,"pos":[-3650,1650],"params":["Inherit","False","4300","1700","Heat region uses local coordinates. Game drives Celsius, region, visibility and factors through HotObject. White-hot behavior uses the recovered unclamped curve.","21","52","51","62","61","60","58","281","283","288","289","290","291","292","293","294","295","296","297","298","299","300","LOCALIZED HEAT GLOW","0.55,0.25,0.12,1","0","0"]}
+{"type":"AmplifyShaderEditor.CommentaryNode, AmplifyShaderEditor","id":327,"pos":[-3650,3400],"params":["Inherit","False","4300","1450","Additional BSG fake light. Rain + USERAIN + FAKERIPPLELIGHT and your per-material rain toggle all gate this output.","14","81","82","80","159","282","313","314","315","316","317","318","319","320","321","RAIN HIGHLIGHT ACCENT","0.12,0.38,0.5,1","0","0"]}
+{"type":"AmplifyShaderEditor.SaturateNode, AmplifyShaderEditor","id":530,"pos":[-4598,336],"params":["Inherit","False","1","0","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.ConditionalIfNode, AmplifyShaderEditor","id":606,"pos":[2020,1380],"params":["Inherit","False","False","5","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":217,"pos":[-2832,-1872],"params":["Inherit","False","334.5999","356.1001","Triplanar Mask","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":218,"pos":[-2832,-1456],"params":["Inherit","False","334.5999","356.1001","Triplanar XY","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":224,"pos":[-2264,-1368],"params":["Inherit","False","253.1824","276.6825","Selected XY","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":226,"pos":[-2264,-1784],"params":["Inherit","False","253.1824","276.6825","Selected Mask","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":235,"pos":[-4000,-2120],"params":["Inherit","False","875.1047","487.2881","Surface Exposure","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":237,"pos":[-4000,-2392],"params":["Inherit","False","609.3743","201.769","Intensity Factor","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":240,"pos":[-3144,-2376],"params":["Inherit","False","205.125","176.3269","Rain Coverage","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":244,"pos":[-1864,-1984],"params":["Inherit","False","246.115","249.8267","Material Mask","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":246,"pos":[-1816,-2360],"params":["Inherit","False","181.0962","165.019","Wet Amount","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":252,"pos":[-1768,-1384],"params":["Inherit","False","214.2039","156.5604","Drop Normal","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":255,"pos":[-1200,-2656],"params":["Inherit","False","181.2","161.0999","Normal Weight","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":256,"pos":[-1200,-2256],"params":["Inherit","False","181.2","161.0999","Diffuse Weight","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":257,"pos":[-1200,-2480],"params":["Inherit","False","181.2","161.0999","Specular Weight","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.StickyNoteNode, AmplifyShaderEditor","id":259,"pos":[-1200,-2080],"params":["Inherit","False","181.2","161.0999","Smoothness Weight","","1,1,1,1","","0","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":44,"pos":[-6926,-432],"params":["Inherit","False","Property","_NormalIntensity","Normal Intensity","13","0","Create","True","0","0","0","False","0","False","Object","-1","","1","1","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":86,"pos":[-6990,-512],"params":["Inherit","False","Property","_Smoothness","Smoothness","10","0","Create","True","0","0","0","False","0","False","Object","-1","","1","0","0","10","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":93,"pos":[-6590,480],"params":["Inherit","False","Property","_TransparentObjectShadowStrength","Transparent Object Shadow Strength","15","0","Create","True","0","0","0","True","0","False","Object","-1","","0.5","0","0","1","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":111,"pos":[-4734,-448],"params":["Inherit","True","Property","_UseColorCorrection1","Use Color Correction","3","0","Create","True","0","0","0","False","0","False","","0","0","0","True","","Toggle","2","Key0","Key1","Create","True","True","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":112,"pos":[-5294,-528],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":113,"pos":[-4622,224],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.LerpOp, AmplifyShaderEditor","id":114,"pos":[-4926,48],"params":["Inherit","True","3","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","2","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.SaturateNode, AmplifyShaderEditor","id":115,"pos":[-4382,80],"params":["Inherit","False","1","0","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":116,"pos":[-4606,80],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":117,"pos":[-5358,32],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":118,"pos":[-5710,240],"params":["Inherit","False","Property","_SpecularColorIntensity","Specular Color Intensity","6","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","1","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":121,"pos":[-5518,416],"params":["Inherit","False","Constant","_Float0","Float 0","26","0","Create","True","0","0","0","False","0","False","Object","-1","","1","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":122,"pos":[-5678,-576],"params":["Inherit","False","Property","_Color","Base Color Correction","4","0","Create","False","0","0","0","False","0","False","Object","-1","","1,1,1,0","1,1,1,0","True","False","0","6","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":123,"pos":[-5086,-32],"params":["Inherit","False","Property","_Glossness","Specular Mult","7","0","Create","False","0","0","0","False","0","False","Object","-1","","1","0","0","10","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor","id":124,"pos":[-6254,528],"params":["Inherit","True","Property","_BumpMap1","Normal Map","12","1","[Normal]","Create","False","0","0","0","False","0","False","","None","None","True","bump","Auto","Texture2D","False","-1","0","2","SAMPLER2D","0","SAMPLERSTATE","1"]}
+{"type":"AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor","id":125,"pos":[-5966,528],"params":["Inherit","True","Property","_TextureSample13","Texture Sample 12","6","0","Create","True","0","0","0","False","0","False","","-1","None","None","True","0","False","white","Auto","True","Object","-1","Auto","Texture2D","False","8","0","SAMPLER2D","","False","1","FLOAT2","0,0","False","2","FLOAT","0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","5","FLOAT","1","False","6","FLOAT","0","False","7","SAMPLERSTATE","","False","6","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.SamplerNode, AmplifyShaderEditor","id":526,"pos":[-5982,32],"params":["Inherit","True","Property","_TextureSample3","Texture Sample 0","3","0","Create","True","0","0","0","False","0","False","","-1","None","None","True","0","False","white","Auto","False","Object","-1","Auto","Texture2D","False","8","0","SAMPLER2D","","False","1","FLOAT2","0,0","False","2","FLOAT","0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","5","FLOAT","1","False","6","FLOAT","0","False","7","SAMPLERSTATE","","False","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.TexturePropertyNode, AmplifyShaderEditor","id":127,"pos":[-6286,32],"params":["Inherit","True","Property","_MainTex","Base Color (RGB) Spec (A)","5","0","Create","False","0","0","0","False","0","False","","None","None","False","black","Auto","Texture2D","False","-1","0","2","SAMPLER2D","0","SAMPLERSTATE","1"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":78,"pos":[-3500,1200],"params":["Inherit","False","Property","_HeatThermalFactor","Game Thermal Brightness Multiplier","33","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","1","1","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":57,"pos":[-3500,1400],"params":["Inherit","False","Global","_ThermalVisionOn","Thermal Vision Active (Game Global)","11","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":129,"pos":[-2608,-432],"params":["Inherit","False","Property","_SpecularBaseStrength","Heat Glow Base Strength","11","0","Create","True","0","0","0","False","0","False","Object","-1","","2","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":126,"pos":[-2600,-352],"params":["Inherit","False","Property","_SpecularAngularBoost","Heat Glow Angular Boost","14","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":50,"pos":[-2552,-80],"params":["Inherit","False","Property","_DropsSpec","Drops Spec","18","1","[HideInInspector]","Create","False","1","Rain Settings","0","0","True","1","Space(10)","False","Object","-1","","128","128","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":52,"pos":[-3500,2450],"params":["Inherit","False","Property","_HeatColor1","Heat Glow Color - Lower Heat","28","1","[HDR]","Create","False","0","0","0","True","0","False","Object","-1","","1,0,0,1","0,0,0,0","True","True","0","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":51,"pos":[-3500,2680],"params":["Inherit","False","Property","_HeatColor2","Heat Glow Color - Higher Heat","29","1","[HDR]","Create","False","0","0","0","True","0","False","Object","-1","","1,0.34,0,1","0,0,0,0","True","True","0","6","COLOR","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":81,"pos":[-3500,3900],"params":["Inherit","False","Property","_NightRippleFakeLightOffset","Rain Highlight Sun Height Fade Offset","23","0","Create","False","0","0","0","True","0","False","Object","-1","","0.2","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":82,"pos":[-3500,4100],"params":["Inherit","False","Property","_NdotLOffset","Rain Highlight Surface Facing Bias","22","0","Create","False","0","0","0","True","0","False","Object","-1","","0.4","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":80,"pos":[-3500,4300],"params":["Inherit","False","Global","_RippleFakeLightIntensity","Rain Highlight Intensity (Game Global)","17","1","[HideInInspector]","Create","False","0","0","0","False","0","False","Object","-1","","0.7","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":213,"pos":[-2808,-1320],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT2","0,0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":214,"pos":[-2808,-1232],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT2","0,0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.SimpleAddOpNode, AmplifyShaderEditor","id":216,"pos":[-2624,-1344],"params":["Inherit","False","3","3","0","FLOAT2","0,0","False","1","FLOAT2","0,0","False","2","FLOAT2","0,0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":215,"pos":[-2808,-1408],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT2","0,0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":220,"pos":[-2440,-1368],"params":["Inherit","False","Property","_TRIPLANAR1","TRIPLANAR 1","35","0","Create","True","0","0","0","False","0","False","","1","0","0","False","TRIPLANAR","Toggle","2","Key0","Key1","Reference","219","False","False","All","False","False","True","9","1","FLOAT2","0,0","False","0","FLOAT2","0,0","False","2","FLOAT2","0,0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","5","FLOAT2","0,0","False","6","FLOAT2","0,0","False","7","FLOAT2","0,0","False","8","FLOAT2","0,0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.ConditionalIfNode, AmplifyShaderEditor","id":223,"pos":[-2216,-1304],"params":["Inherit","False","False","5","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT2","0,0","False","3","FLOAT2","0,0","False","4","FLOAT2","0,0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor","id":159,"pos":[-3500,4500],"params":["Inherit","False","Global","_SunDirection","Sun Direction (Game Global)","31","0","Create","True","0","0","0","False","0","False","Object","-1","","0,0,0,0","0,0,0,0","0","5","FLOAT4","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":248,"pos":[-2192,-1440],"params":["Inherit","False","Constant","_Float12","Float 12","35","0","Create","True","0","0","0","False","0","False","Object","-1","","7","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":247,"pos":[-2000,-1328],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT2","0,0","False","1","FLOAT2","0"]}
+{"type":"AmplifyShaderEditor.DynamicAppendNode, AmplifyShaderEditor","id":249,"pos":[-1864,-1328],"params":["Inherit","False","FLOAT3","4","0","FLOAT2","0,0","False","1","FLOAT","1","False","2","FLOAT","1","False","3","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.NormalizeNode, AmplifyShaderEditor","id":251,"pos":[-1728,-1328],"params":["Inherit","False","False","1","0","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":155,"pos":[-1392,-2184],"params":["Inherit","False","Global","_WetDropAlbedo","_WetDropAlbedo","32","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":253,"pos":[-1176,-2208],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":260,"pos":[-1176,-2032],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":258,"pos":[-1176,-2432],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":254,"pos":[-1176,-2608],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":156,"pos":[-1392,-2608],"params":["Inherit","False","Global","_WetDropNormal","_WetDropNormal","32","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":261,"pos":[-1216,-1888],"params":["Inherit","False","Constant","_Color0","Color 0","35","0","Create","True","0","0","0","False","0","False","Object","-1","","0,0,0,0","0,0,0,0","True","False","0","6","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.LerpOp, AmplifyShaderEditor","id":263,"pos":[-952,-2080],"params":["Inherit","False","3","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.LerpOp, AmplifyShaderEditor","id":262,"pos":[-952,-2256],"params":["Inherit","False","3","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","2","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.LerpOp, AmplifyShaderEditor","id":265,"pos":[-952,-2480],"params":["Inherit","False","3","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","2","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.LerpOp, AmplifyShaderEditor","id":264,"pos":[-952,-2656],"params":["Inherit","False","3","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","2","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.ColorNode, AmplifyShaderEditor","id":266,"pos":[-1216,-1744],"params":["Inherit","False","Constant","_Color1","Color 1","35","0","Create","True","0","0","0","False","0","False","Object","-1","","1,1,1,0","0,0,0,0","True","False","0","6","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT3","5"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":267,"pos":[-1360,-1960],"params":["Inherit","False","Constant","_Float13","Float 13","35","0","Create","True","0","0","0","False","0","False","Object","-1","","1","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":270,"pos":[176,-288],"params":["Inherit","False","Property","_Switch1","Switch 1","35","0","Create","True","0","0","0","False","0","False","","0","0","0","True","","Toggle","2","Key0","Key1","Reference","269","True","True","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":272,"pos":[-24,-8],"params":["Inherit","False","Property","_Switch3","Switch 3","35","0","Create","True","0","0","0","False","0","False","","0","0","0","True","","Toggle","2","Key0","Key1","Reference","268","True","True","All","False","False","True","9","1","FLOAT","0","False","0","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","5","FLOAT","0","False","6","FLOAT","0","False","7","FLOAT","0","False","8","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":273,"pos":[176,-32],"params":["Inherit","False","Property","_Switch4","Switch 4","35","0","Create","True","0","0","0","False","0","False","","0","0","0","True","","Toggle","2","Key0","Key1","Reference","269","True","True","All","False","False","True","9","1","FLOAT","0","False","0","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","5","FLOAT","0","False","6","FLOAT","0","False","7","FLOAT","0","False","8","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":268,"pos":[-24,-392],"params":["Inherit","False","Property","_USERAIN","USERAIN","35","0","Create","True","0","0","0","False","0","False","","1","0","0","False","USERAIN","Toggle","2","Key0","Key1","Create","False","False","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":269,"pos":[176,-416],"params":["Inherit","False","Property","_Rain","Rain","35","0","Create","True","0","0","0","False","0","False","","1","0","0","False","Rain","Toggle","2","Key0","Key1","Create","False","False","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":271,"pos":[-24,-264],"params":["Inherit","False","Property","_Switch2","Switch 2","35","0","Create","True","0","0","0","False","0","False","","0","0","0","True","","Toggle","2","Key0","Key1","Reference","268","True","True","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.NormalizeNode, AmplifyShaderEditor","id":132,"pos":[752,-264],"params":["Inherit","False","False","1","0","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.ViewDirInputsCoordNode, AmplifyShaderEditor","id":131,"pos":[544,-264],"params":["Inherit","False","Tangent","False","0","4","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3"]}
+{"type":"AmplifyShaderEditor.DotProductOpNode, AmplifyShaderEditor","id":130,"pos":[912,-288],"params":["Inherit","False","2","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.OneMinusNode, AmplifyShaderEditor","id":133,"pos":[1040,-288],"params":["Inherit","False","1","0","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":134,"pos":[1232,-312],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":135,"pos":[1408,-312],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":136,"pos":[1232,-216],"params":["Inherit","False","Constant","_Float1","Float 1","30","0","Create","True","0","0","0","False","0","False","Object","-1","","0.5","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RegisterLocalVarNode, AmplifyShaderEditor","id":137,"pos":[1568,-312],"params":["Inherit","False","Angle Ref","-1","True","1","0","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.GetLocalVarNode, AmplifyShaderEditor","id":142,"pos":[-1096,-696],"params":["Inherit","False","137","Angle Ref","1","0","OBJECT","","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleAddOpNode, AmplifyShaderEditor","id":144,"pos":[-776,-696],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":146,"pos":[-848,-784],"params":["Inherit","False","Constant","_Float2","Float 2","30","0","Create","True","0","0","0","False","0","False","Object","-1","","0.5","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":145,"pos":[-664,-696],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":143,"pos":[-920,-696],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":274,"pos":[-392,-104],"params":["Inherit","False","Property","_Switch5","Switch 5","35","0","Create","True","0","0","0","False","0","False","","0","0","0","True","","Toggle","2","Key0","Key1","Reference","268","True","True","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":275,"pos":[-192,-128],"params":["Inherit","False","Property","_Switch6","Switch 6","35","0","Create","True","0","0","0","False","0","False","","0","0","0","True","","Toggle","2","Key0","Key1","Reference","269","True","True","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":153,"pos":[-1392,-2032],"params":["Inherit","False","Global","_WetDropSpecular","_WetDropSpecular","32","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":154,"pos":[-1392,-2432],"params":["Inherit","False","Global","_WetDropGlossness","_WetDropGlossness","32","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":281,"pos":[-3500,3100],"params":["Inherit","False","Property","_HeatVisibleFactor","Game Heat Glow Multiplier","35","1","[HideInInspector]","Create","True","0","0","0","False","0","False","Object","-1","","1","1","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":282,"pos":[-3500,3700],"params":["Inherit","False","Property","_RippleFakeLightIntensityOffset","Rain Highlight Mask Threshold","21","0","Create","True","0","0","0","False","0","False","Object","-1","","0.7","0.7","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":283,"pos":[-950,1800],"params":["Inherit","False","Property","USEHEAT","Enable Localized Heat Glow","27","0","Create","True","0","0","0","False","0","False","","1","0","0","True","USEHEAT","Toggle","2","Key0","Key1","Create","False","False","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RegisterLocalVarNode, AmplifyShaderEditor","id":284,"pos":[560,-420],"params":["Inherit","False","Surface Albedo","-1","True","1","0","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RegisterLocalVarNode, AmplifyShaderEditor","id":286,"pos":[-1050,-1600],"params":["Inherit","False","Material Drop Mask","-1","True","1","0","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RegisterLocalVarNode, AmplifyShaderEditor","id":287,"pos":[560,100],"params":["Inherit","False","Specular Angle Response","-1","True","1","0","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.PositionNode, AmplifyShaderEditor","id":288,"pos":[-2900,1850],"params":["Inherit","False","0","0","4","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3"]}
+{"type":"AmplifyShaderEditor.BreakToComponentsNode, AmplifyShaderEditor","id":289,"pos":[-2900,2050],"params":["Inherit","False","FLOAT4","1","0","FLOAT4","0,0,0,0","False","16","FLOAT","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT","5","FLOAT","6","FLOAT","7","FLOAT","8","FLOAT","9","FLOAT","10","FLOAT","11","FLOAT","12","FLOAT","13","FLOAT","14","FLOAT","15"]}
+{"type":"AmplifyShaderEditor.BreakToComponentsNode, AmplifyShaderEditor","id":290,"pos":[-2900,2250],"params":["Inherit","False","FLOAT4","1","0","FLOAT4","0,0,0,0","False","16","FLOAT","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT","5","FLOAT","6","FLOAT","7","FLOAT","8","FLOAT","9","FLOAT","10","FLOAT","11","FLOAT","12","FLOAT","13","FLOAT","14","FLOAT","15"]}
+{"type":"AmplifyShaderEditor.DynamicAppendNode, AmplifyShaderEditor","id":291,"pos":[-2600,2050],"params":["Inherit","False","FLOAT3","4","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.DynamicAppendNode, AmplifyShaderEditor","id":292,"pos":[-2600,2250],"params":["Inherit","False","FLOAT3","4","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.FunctionNode, AmplifyShaderEditor","id":293,"pos":[-2150,1900],"params":["Inherit","False","Epic Localized Heat Glow","-1","","293","94c880bb465544148e18184db896b852","0","7","1","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT","0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT","0","False","1","FLOAT3","28"]}
+{"type":"AmplifyShaderEditor.GetLocalVarNode, AmplifyShaderEditor","id":294,"pos":[-2100,1650],"params":["Inherit","False","287","Specular Angle Response","1","0","OBJECT","","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":295,"pos":[-1500,1900],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":296,"pos":[-1500,1750],"params":["Inherit","False","Constant","_Constant","Constant","0","0","Create","True","0","0","0","False","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RegisterLocalVarNode, AmplifyShaderEditor","id":297,"pos":[-700,1800],"params":["Inherit","False","Localized Heat Radiance","-1","True","1","0","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.GetLocalVarNode, AmplifyShaderEditor","id":298,"pos":[-1100,2300],"params":["Inherit","False","297","Localized Heat Radiance","1","0","OBJECT","","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":299,"pos":[-700,2300],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RegisterLocalVarNode, AmplifyShaderEditor","id":300,"pos":[-430,2300],"params":["Inherit","False","Visible Heat Emission","-1","True","1","0","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.GetLocalVarNode, AmplifyShaderEditor","id":301,"pos":[-2300,900],"params":["Inherit","False","284","Surface Albedo","1","0","OBJECT","","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.BreakToComponentsNode, AmplifyShaderEditor","id":302,"pos":[-2900,1000],"params":["Inherit","False","FLOAT4","1","0","FLOAT4","0,0,0,0","False","16","FLOAT","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4","FLOAT","5","FLOAT","6","FLOAT","7","FLOAT","8","FLOAT","9","FLOAT","10","FLOAT","11","FLOAT","12","FLOAT","13","FLOAT","14","FLOAT","15"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":303,"pos":[-1950,900],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.GetLocalVarNode, AmplifyShaderEditor","id":304,"pos":[-2300,1200],"params":["Inherit","False","297","Localized Heat Radiance","1","0","OBJECT","","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":305,"pos":[-2300,1350],"params":["Inherit","False","Constant","_Constant","Constant","0","0","Create","True","0","0","0","False","0","False","Object","-1","","10","10","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":306,"pos":[-1950,1200],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.SimpleAddOpNode, AmplifyShaderEditor","id":307,"pos":[-1650,1200],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":308,"pos":[-1300,1050],"params":["Inherit","False","Property","_HeatThermalSource","Heat Thermal Source","27","0","Create","True","0","0","0","False","0","False","","1","0","0","False","USEHEAT","Toggle","2","Key0","Key1","Reference","283","False","False","All","False","False","True","9","1","FLOAT3","0,0,0","False","0","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT3","0,0,0","False","4","FLOAT3","0,0,0","False","5","FLOAT3","0,0,0","False","6","FLOAT3","0,0,0","False","7","FLOAT3","0,0,0","False","8","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.FunctionNode, AmplifyShaderEditor","id":309,"pos":[-900,850],"params":["Inherit","False","Epic Thermal Surface Response","-1","","309","6e93c1b0e87e4dd19f8b1b748984938e","0","3","1","FLOAT3","0,0,0","False","2","FLOAT4","0,0,0,0","False","3","FLOAT","0","False","1","FLOAT3","9"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":310,"pos":[-450,1250],"params":["Inherit","False","Constant","_Constant","Constant","0","0","Create","True","0","0","0","False","0","False","Object","-1","","1","1","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.ConditionalIfNode, AmplifyShaderEditor","id":311,"pos":[-150,1250],"params":["Inherit","False","False","5","0","FLOAT","0","False","1","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.LerpOp, AmplifyShaderEditor","id":312,"pos":[150,850],"params":["Inherit","False","3","0","FLOAT3","0,0,0","False","1","FLOAT3","0,0,0","False","2","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.GetLocalVarNode, AmplifyShaderEditor","id":313,"pos":[-2900,3500],"params":["Inherit","False","285","Surface Normal","1","0","OBJECT","","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.WorldNormalVector, AmplifyShaderEditor","id":314,"pos":[-2600,3500],"params":["Inherit","False","False","1","0","FLOAT3","0,0,0","False","4","FLOAT3","0","FLOAT","1","FLOAT","2","FLOAT","3"]}
+{"type":"AmplifyShaderEditor.GetLocalVarNode, AmplifyShaderEditor","id":315,"pos":[-2900,3750],"params":["Inherit","False","286","Material Drop Mask","1","0","OBJECT","","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.FunctionNode, AmplifyShaderEditor","id":316,"pos":[-2150,3550],"params":["Inherit","False","Epic Rain Highlight Accent","-1","","316","998aace7cf554d7993b239cc66d0e551","0","8","1","FLOAT3","0,0,0","False","2","FLOAT3","0,0,0","False","3","FLOAT","0","False","4","FLOAT3","0,0,0","False","5","FLOAT","0","False","6","FLOAT","0","False","7","FLOAT","0","False","8","FLOAT","0","False","1","FLOAT","37"]}
+{"type":"AmplifyShaderEditor.SimpleMultiplyOpNode, AmplifyShaderEditor","id":317,"pos":[-1650,3550],"params":["Inherit","False","2","2","0","FLOAT","0","False","1","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":318,"pos":[-1350,3550],"params":["Inherit","False","Property","_FakeRippleLighting","Use Game Rain Highlight Accent","27","0","Create","True","0","0","0","False","0","False","","1","0","0","False","FAKERIPPLELIGHT","Toggle","2","Key0","Key1","Create","False","False","All","False","False","True","9","1","FLOAT","0","False","0","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","5","FLOAT","0","False","6","FLOAT","0","False","7","FLOAT","0","False","8","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":319,"pos":[-1050,3550],"params":["Inherit","False","Property","_RainAccentUser","Rain Accent Material Gate","35","0","Create","True","0","0","0","False","0","False","","1","0","0","False","USERAIN","Toggle","2","Key0","Key1","Reference","268","False","False","All","False","False","True","9","1","FLOAT","0","False","0","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","5","FLOAT","0","False","6","FLOAT","0","False","7","FLOAT","0","False","8","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.StaticSwitch, AmplifyShaderEditor","id":320,"pos":[-750,3550],"params":["Inherit","False","Property","_RainAccentWeather","Rain Accent Weather Gate","35","0","Create","True","0","0","0","False","0","False","","1","0","0","False","Rain","Toggle","2","Key0","Key1","Reference","269","False","False","All","False","False","True","9","1","FLOAT","0","False","0","FLOAT","0","False","2","FLOAT","0","False","3","FLOAT","0","False","4","FLOAT","0","False","5","FLOAT","0","False","6","FLOAT","0","False","7","FLOAT","0","False","8","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.RegisterLocalVarNode, AmplifyShaderEditor","id":321,"pos":[-430,3550],"params":["Inherit","False","Rain Highlight Emission","-1","True","1","0","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.GetLocalVarNode, AmplifyShaderEditor","id":322,"pos":[900,200],"params":["Inherit","False","300","Visible Heat Emission","1","0","OBJECT","","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.GetLocalVarNode, AmplifyShaderEditor","id":323,"pos":[900,400],"params":["Inherit","False","321","Rain Highlight Emission","1","0","OBJECT","","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.SimpleAddOpNode, AmplifyShaderEditor","id":324,"pos":[1250,250],"params":["Inherit","False","2","2","0","FLOAT3","0,0,0","False","1","FLOAT","0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RegisterLocalVarNode, AmplifyShaderEditor","id":285,"pos":[808,-160],"params":["Inherit","False","Surface Normal","-1","True","1","0","FLOAT3","0,0,0","False","1","FLOAT3","0"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":60,"pos":[-3500,1850],"params":["Inherit","False","Property","_HeatTemp","Heat Temperature (Celsius - Game Driven)","30","1","[HideInInspector]","Create","False","0","0","0","True","0","False","Object","-1","","0","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor","id":61,"pos":[-3500,2050],"params":["Inherit","False","Property","_HeatCenter","Heat Region Center (Local XYZ)","31","1","[HideInInspector]","Create","False","0","0","0","True","0","False","Object","-1","","0,0,0,1","0,0,0,1","0","5","FLOAT4","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
+{"type":"AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor","id":62,"pos":[-3500,2250],"params":["Inherit","False","Property","_HeatSize","Heat Region Size (Local XYZ)","32","1","[HideInInspector]","Create","False","0","0","0","True","0","False","Object","-1","","0.02,0.04,0.02,1","0.02,0.04,0.02,0","0","5","FLOAT4","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
+{"type":"AmplifyShaderEditor.RangedFloatNode, AmplifyShaderEditor","id":58,"pos":[-3500,2900],"params":["Inherit","False","Property","_HeatVisible","Visible Heat Glow Strength","34","1","[HideInInspector]","Create","False","0","0","0","True","0","False","Object","-1","","1","0","0","0","0","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.Vector4Node, AmplifyShaderEditor","id":77,"pos":[-3500,1000],"params":["Inherit","False","Property","_Temperature","Thermal Settings (Min, Max, Base Influence, Add)","24","0","Create","True","0","0","0","False","0","False","Object","-1","","0.1,0.2,0.28,0","0.1,0.2,0.28,0","0","5","FLOAT4","0","FLOAT","1","FLOAT","2","FLOAT","3","FLOAT","4"]}
+{"type":"AmplifyShaderEditor.LerpOp, AmplifyShaderEditor","id":607,"pos":[2270,1250],"params":["Inherit","False","3","0","FLOAT","0","False","1","FLOAT","1","False","2","FLOAT","0","False","1","FLOAT","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":0,"pos":[2700,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed4c183912885756b3f5c37135bd149f","True","ExtraPrePass","0","0","ExtraPrePass","6","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","True","1","1","False","","0","False","","0","1","False","","0","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","False","True","1","LightMode=ForwardBase","False","False","0","","0","0","Standard","0","False","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":1,"pos":[2892,-128],"params":["Float","False","True","-1","3","AmplifyShaderEditor.MaterialInspector","0","3","Tarkov Custom/Specular/Lit/Transparent/Epic SMap PBR Transparent No AClip ZWrite_Icon","ed4c183912885756b3f5c37135bd149f","True","ForwardBase","0","1","ForwardBase","17","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","True","True","False","0","False","","255","False","","3","False","","7","False","","3","False","","1","False","","1","False","","0","False","","0","False","","0","False","","0","False","","True","True","2","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Transparent=RenderType","Queue=Transparent=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","True","True","2","5","False","","10","False","","3","1","False","","10","False","","True","1","False","","1","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","LightMode=ForwardBase","False","False","0","","0","0","Standard","45","Category","0","0","  Instanced Terrain Normals","1","0","Workflow","0","639178329818512781","Surface","1","638973132456219333","  Blend","0","639038739748597002","  Dither Shadows","0","639262337232183380","Two Sided","1","0","Alpha Clipping","0","639099265361351078","  Use Shadow Threshold","0","0","Deferred Pass","0","639038724829800258","Normal Space","0","0","Transmission","1","639038741362378067","  Transmission Shadow","1,True,_TransparentObjectShadowStrength","639038741129572820","Translucency","0","639038740987445172","  Translucency Strength","1,False,","0","  Normal Distortion","0.5,False,","0","  Scattering","2,False,","0","  Direct","0.9,False,","0","  Ambient","0.1,False,","0","  Shadow","0.5,False,","0","Cast Shadows","1","0","Receive Shadows","1","0","Receive Specular","1","638965988478672004","Receive Reflections","1","638965988492216648","GPU Instancing","1","0","LOD CrossFade","1","0","Built-in Fog","1","0","Ambient Light","1","0","Meta Pass","1","0","Add Pass","1","0","Override Baked GI","0","0","Write Depth","0","638973149026693352","  Conservative","0","0","Extra Pre Pass","0","0","Tessellation","0","0","  Phong","0","0","  Strength","0.5,False,","0","  Type","0","0","  Tess","16,False,","0","  Min","10,False,","0","  Max","25,False,","0","  Edge Length","16,False,","0","  Max Displacement","25,False,","0","Disable Batching","0","0","Vertex Position","1","0","0","8","False","True","True","False","True","True","True","True","False","","False","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":2,"pos":[2700,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed4c183912885756b3f5c37135bd149f","True","ForwardAdd","0","2","ForwardAdd","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","True","4","5","False","","1","False","","0","1","False","","0","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","2","False","","False","False","False","True","1","LightMode=ForwardAdd","False","False","0","","0","0","Standard","0","False","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":3,"pos":[2700,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed4c183912885756b3f5c37135bd149f","True","Deferred","0","3","Deferred","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","True","0","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","LightMode=Deferred","False","False","0","","0","0","Standard","0","False","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":4,"pos":[2700,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed4c183912885756b3f5c37135bd149f","True","Meta","0","4","Meta","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","2","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","LightMode=Meta","False","False","0","","0","0","Standard","0","False","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":5,"pos":[2700,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed4c183912885756b3f5c37135bd149f","True","ShadowCaster","0","5","ShadowCaster","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","True","0","False","","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","False","","True","3","False","","False","False","True","1","LightMode=ShadowCaster","False","False","0","","0","0","Standard","0","False","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":6,"pos":[2700,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed4c183912885756b3f5c37135bd149f","True","SceneSelectionPass","0","6","SceneSelectionPass","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","False","","False","False","False","True","1","LightMode=SceneSelectionPass","False","False","0","","0","0","Standard","0","False","0"]}
+{"type":"AmplifyShaderEditor.TemplateMultiPassMasterNode, AmplifyShaderEditor","id":7,"pos":[2700,0],"params":["Float","False","False","-1","3","AmplifyShaderEditor.MaterialInspector","0","1","New Amplify Shader","ed4c183912885756b3f5c37135bd149f","True","ScenePickingPass","0","7","ScenePickingPass","0","False","True","0","1","False","","0","False","","0","1","False","","0","False","","True","0","False","","0","False","","False","False","False","False","False","False","False","False","False","True","0","False","","False","True","0","False","","False","True","True","True","True","True","0","False","","False","False","False","False","False","False","False","True","False","0","False","","255","False","","255","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","0","False","","False","True","1","False","","True","3","False","","True","True","0","False","","0","False","","True","1","False","","True","3","RenderType=Opaque=RenderType","Queue=Geometry=Queue=0","DisableBatching=False=DisableBatching","True","3","True","12","all","0","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","False","True","1","False","","False","False","False","True","1","LightMode=Picking","False","False","0","","0","0","Standard","0","False","0"]}
+{"wire":[191,0,188,0]}
+{"wire":[192,0,191,0]}
+{"wire":[192,1,195,0]}
+{"wire":[201,0,185,0]}
+{"wire":[201,1,79,0]}
+{"wire":[193,0,192,0]}
+{"wire":[193,1,194,0]}
+{"wire":[202,0,201,0]}
+{"wire":[196,0,193,0]}
+{"wire":[197,0,196,0]}
+{"wire":[197,1,196,1]}
+{"wire":[197,2,196,2]}
+{"wire":[207,0,202,0]}
+{"wire":[207,1,202,1]}
+{"wire":[203,0,202,1]}
+{"wire":[203,1,202,2]}
+{"wire":[205,0,202,2]}
+{"wire":[205,1,202,0]}
+{"wire":[198,0,196,0]}
+{"wire":[198,1,197,0]}
+{"wire":[199,0,196,1]}
+{"wire":[199,1,197,0]}
+{"wire":[200,0,196,2]}
+{"wire":[200,1,197,0]}
+{"wire":[208,35,207,0]}
+{"wire":[206,35,205,0]}
+{"wire":[204,35,203,0]}
+{"wire":[211,0,199,0]}
+{"wire":[211,1,206,13]}
+{"wire":[212,0,200,0]}
+{"wire":[212,1,208,13]}
+{"wire":[210,0,198,0]}
+{"wire":[210,1,204,13]}
+{"wire":[190,0,189,0]}
+{"wire":[190,1,79,0]}
+{"wire":[183,35,190,0]}
+{"wire":[209,0,210,0]}
+{"wire":[209,1,211,0]}
+{"wire":[209,2,212,0]}
+{"wire":[227,0,188,0]}
+{"wire":[227,1,161,0]}
+{"wire":[230,0,188,0]}
+{"wire":[230,1,162,0]}
+{"wire":[219,1,183,13]}
+{"wire":[219,0,209,0]}
+{"wire":[228,0,227,0]}
+{"wire":[228,1,232,0]}
+{"wire":[231,0,230,0]}
+{"wire":[231,1,232,0]}
+{"wire":[221,0,84,0]}
+{"wire":[221,1,222,0]}
+{"wire":[221,2,183,13]}
+{"wire":[221,3,219,0]}
+{"wire":[221,4,219,0]}
+{"wire":[233,0,231,0]}
+{"wire":[233,1,228,0]}
+{"wire":[236,0,152,0]}
+{"wire":[236,1,158,0]}
+{"wire":[234,0,233,0]}
+{"wire":[238,0,236,0]}
+{"wire":[242,0,241,0]}
+{"wire":[242,1,221,0]}
+{"wire":[239,0,238,0]}
+{"wire":[239,1,234,0]}
+{"wire":[243,0,84,0]}
+{"wire":[243,1,222,0]}
+{"wire":[243,2,242,0]}
+{"wire":[243,3,221,0]}
+{"wire":[243,4,221,0]}
+{"wire":[245,0,239,0]}
+{"wire":[245,1,243,0]}
+{"wire":[278,0,277,0]}
+{"wire":[278,1,245,0]}
+{"wire":[602,0,278,0]}
+{"wire":[603,0,602,0]}
+{"wire":[128,0,529,0]}
+{"wire":[604,0,603,0]}
+{"wire":[604,1,601,0]}
 {"wire":[109,0,128,4]}
 {"wire":[109,1,110,0]}
+{"wire":[605,0,604,0]}
+{"wire":[530,0,109,0]}
+{"wire":[606,0,530,0]}
+{"wire":[606,2,605,0]}
+{"wire":[111,1,526,5]}
+{"wire":[111,0,112,0]}
 {"wire":[112,0,122,0]}
-{"wire":[112,1,126,5]}
+{"wire":[112,1,526,5]}
 {"wire":[113,0,128,2]}
 {"wire":[113,1,86,0]}
-{"wire":[125,0,124,0]}
-{"wire":[125,5,44,0]}
-{"wire":[116,0,114,0]}
-{"wire":[116,1,123,0]}
-{"wire":[114,0,126,4]}
+{"wire":[114,0,526,4]}
 {"wire":[114,1,117,0]}
 {"wire":[114,2,118,0]}
-{"wire":[126,0,127,0]}
-{"wire":[117,0,126,5]}
-{"wire":[117,1,126,4]}
-{"wire":[115,0,116,0]}
-{"wire":[111,1,126,5]}
-{"wire":[111,0,112,0]}
-{"wire":[130,0,109,0]}
-{"wire":[1,0,111,0]}
-{"wire":[1,1,125,0]}
+{"wire":[115,0,275,0]}
+{"wire":[116,0,114,0]}
+{"wire":[116,1,123,0]}
+{"wire":[117,0,526,5]}
+{"wire":[117,1,526,4]}
+{"wire":[125,0,124,0]}
+{"wire":[125,5,44,0]}
+{"wire":[526,0,127,0]}
+{"wire":[213,0,199,0]}
+{"wire":[213,1,206,0]}
+{"wire":[214,0,200,0]}
+{"wire":[214,1,208,0]}
+{"wire":[216,0,215,0]}
+{"wire":[216,1,213,0]}
+{"wire":[216,2,214,0]}
+{"wire":[215,0,198,0]}
+{"wire":[215,1,204,0]}
+{"wire":[220,1,183,0]}
+{"wire":[220,0,216,0]}
+{"wire":[223,0,84,0]}
+{"wire":[223,1,222,0]}
+{"wire":[223,2,183,0]}
+{"wire":[223,3,220,0]}
+{"wire":[223,4,220,0]}
+{"wire":[247,0,248,0]}
+{"wire":[247,1,223,0]}
+{"wire":[249,0,247,0]}
+{"wire":[251,0,249,0]}
+{"wire":[253,0,278,0]}
+{"wire":[253,1,155,0]}
+{"wire":[260,0,153,0]}
+{"wire":[260,1,278,0]}
+{"wire":[258,0,154,0]}
+{"wire":[258,1,278,0]}
+{"wire":[254,0,156,0]}
+{"wire":[254,1,278,0]}
+{"wire":[263,0,113,0]}
+{"wire":[263,1,267,0]}
+{"wire":[263,2,260,0]}
+{"wire":[262,0,111,0]}
+{"wire":[262,1,261,0]}
+{"wire":[262,2,253,0]}
+{"wire":[265,0,116,0]}
+{"wire":[265,1,266,0]}
+{"wire":[265,2,258,0]}
+{"wire":[264,0,125,0]}
+{"wire":[264,1,251,0]}
+{"wire":[264,2,254,0]}
+{"wire":[270,1,125,0]}
+{"wire":[270,0,271,0]}
+{"wire":[272,1,113,0]}
+{"wire":[272,0,263,0]}
+{"wire":[273,1,113,0]}
+{"wire":[273,0,272,0]}
+{"wire":[268,1,111,0]}
+{"wire":[268,0,262,0]}
+{"wire":[269,1,111,0]}
+{"wire":[269,0,268,0]}
+{"wire":[271,1,125,0]}
+{"wire":[271,0,264,0]}
+{"wire":[132,0,131,0]}
+{"wire":[130,0,270,0]}
+{"wire":[130,1,132,0]}
+{"wire":[133,0,130,0]}
+{"wire":[134,0,133,0]}
+{"wire":[134,1,133,0]}
+{"wire":[135,0,134,0]}
+{"wire":[135,1,136,0]}
+{"wire":[137,0,135,0]}
+{"wire":[144,0,143,0]}
+{"wire":[144,1,129,0]}
+{"wire":[145,0,144,0]}
+{"wire":[145,1,146,0]}
+{"wire":[143,0,142,0]}
+{"wire":[143,1,126,0]}
+{"wire":[274,1,116,0]}
+{"wire":[274,0,265,0]}
+{"wire":[275,1,116,0]}
+{"wire":[275,0,274,0]}
+{"wire":[283,1,296,0]}
+{"wire":[283,0,295,0]}
+{"wire":[284,0,269,0]}
+{"wire":[286,0,243,0]}
+{"wire":[287,0,145,0]}
+{"wire":[289,0,61,0]}
+{"wire":[290,0,62,0]}
+{"wire":[291,0,289,0]}
+{"wire":[291,1,289,1]}
+{"wire":[291,2,289,2]}
+{"wire":[292,0,290,0]}
+{"wire":[292,1,290,1]}
+{"wire":[292,2,290,2]}
+{"wire":[293,1,288,0]}
+{"wire":[293,2,291,0]}
+{"wire":[293,3,292,0]}
+{"wire":[293,4,60,0]}
+{"wire":[293,5,52,5]}
+{"wire":[293,6,51,5]}
+{"wire":[293,7,281,0]}
+{"wire":[295,0,293,28]}
+{"wire":[295,1,294,0]}
+{"wire":[297,0,283,0]}
+{"wire":[299,0,298,0]}
+{"wire":[299,1,58,0]}
+{"wire":[300,0,299,0]}
+{"wire":[302,0,77,0]}
+{"wire":[303,0,301,0]}
+{"wire":[303,1,302,2]}
+{"wire":[306,0,304,0]}
+{"wire":[306,1,305,0]}
+{"wire":[307,0,301,0]}
+{"wire":[307,1,306,0]}
+{"wire":[308,1,303,0]}
+{"wire":[308,0,307,0]}
+{"wire":[309,1,308,0]}
+{"wire":[309,2,77,0]}
+{"wire":[309,3,78,0]}
+{"wire":[311,0,57,0]}
+{"wire":[311,1,296,0]}
+{"wire":[311,2,310,0]}
+{"wire":[311,3,296,0]}
+{"wire":[311,4,296,0]}
+{"wire":[312,0,301,0]}
+{"wire":[312,1,309,9]}
+{"wire":[312,2,311,0]}
+{"wire":[314,0,313,0]}
+{"wire":[316,1,314,0]}
+{"wire":[316,2,313,0]}
+{"wire":[316,3,315,0]}
+{"wire":[316,4,159,0]}
+{"wire":[316,5,282,0]}
+{"wire":[316,6,82,0]}
+{"wire":[316,7,81,0]}
+{"wire":[316,8,80,0]}
+{"wire":[317,0,316,37]}
+{"wire":[317,1,277,0]}
+{"wire":[318,1,296,0]}
+{"wire":[318,0,317,0]}
+{"wire":[319,1,296,0]}
+{"wire":[319,0,318,0]}
+{"wire":[320,1,296,0]}
+{"wire":[320,0,319,0]}
+{"wire":[321,0,320,0]}
+{"wire":[324,0,322,0]}
+{"wire":[324,1,323,0]}
+{"wire":[285,0,270,0]}
+{"wire":[607,0,530,0]}
+{"wire":[607,2,606,0]}
+{"wire":[1,0,312,0]}
+{"wire":[1,1,285,0]}
 {"wire":[1,3,115,0]}
-{"wire":[1,5,113,0]}
+{"wire":[1,5,273,0]}
 {"wire":[1,6,128,1]}
-{"wire":[1,7,130,0]}
+{"wire":[1,2,324,0]}
+{"wire":[1,7,607,0]}
 ASEEND*/
-//CHKSM=DA1C75EE9815B268CD5162FF6F35D41C0103B08B
+//CHKSM=32C9B053523FB68996E6B2FB8534641004A3D53E
